@@ -1,0 +1,1 @@
+<Image id="Button" image="BossIcon" width="150" height="150" onClick="StartBoss" tooltip="Start a Boss" tooltipPosition="Below" active="false"></Image>

@@ -1,0 +1,207 @@
+function onLoad(saved_game_data)
+  if saved_game_data ~= "" and saved_game_data ~= nil then
+    local loaded_data = JSON.decode(saved_game_data)
+    --local left_zone_guid = loaded_data[1]
+  end
+
+  setupSnapPoints()
+  createButtons()
+end
+
+function onSave()
+  local data_to_save = {
+  }
+
+  saved_game_data = JSON.encode(data_to_save)
+
+  return saved_game_data
+end
+
+function createButtons()
+  self.createButton({
+    click_function = "swapUpgrade",
+    function_owner = self,
+    label          = "Upgrade",
+    position       = {0, 0.75, -7},
+    rotation       = {0, 0, 0},
+    --scale          = {1/self.getScale()[1], 1/self.getScale()[2], 1/self.getScale()[3]},
+    width          = 4500,
+    height         = 700,
+    tooltip        = "",
+    font_color     = {1, 1, 1},
+    font_size      = 500,
+    color          = "Grey"
+  })
+end
+
+function swapUpgrade(obj, color, alt_click)
+  getObjectsAsync(swapWithUpgrade, {color})
+end
+
+function swapWithUpgrade(objectsOnToolInfo, args)
+  local requestingPlayerColor = args[1]
+
+  local object_list = objectsOnToolInfo
+  local top_source_obj_guid = getObjectGUIDOnTop(object_list)
+  local target_pos = getSlotPosition()
+  for _, source_obj in ipairs(object_list) do
+    if source_obj.name == "Card" or source_obj.name == "CardCustom" or source_obj.name == "Deck" or source_obj.name == "DeckCustom" then
+      local source_obj_guid = source_obj.getGUID()
+      target_pos = source_obj.getPosition()
+      target_pos[2] = target_pos[2] + 0.5
+
+      if source_obj.name == "Deck" or source_obj.name == "DeckCustom" then
+        -- Go through the deck and do the evaluation for each card
+        for _, cur_card in ipairs(source_obj.getObjects()) do
+          -- Upgrade cards should return to the upgrade deck. Base cards should go to a global discard pile
+          if Global.call('IsUpgradeCard', cur_card.guid) then
+            local reward_deck_info = Global.getTable('PLAYER_REWARD_DECKS')
+            if reward_deck_info[requestingPlayerColor] ~= nil and reward_deck_info[requestingPlayerColor]["Upgrade"] ~= nil then
+              local targetPos = reward_deck_info[requestingPlayerColor]["Upgrade"]
+              targetPos[2] = targetPos[2] + 1
+              local targetRot = {0, 180, 180}
+
+              -- Need to always retest if the deck still exists
+              if source_obj and getObjectFromGUID(source_obj_guid) and source_obj.remainder == nil then
+                source_obj.takeObject({guid=cur_card.guid, position=targetPos, rotation=targetRot})
+              else
+                local cur_card_obj = getObjectFromGUID(cur_card.guid)
+                cur_card_obj.setPositionSmooth(targetPos)
+                cur_card_obj.setRotationSmooth(targetRot)
+              end
+            else
+              broadcastToColor("WARNING: Unable to find upgrade deck to return upgrade card.", requestingPlayerColor)
+            end
+          else
+            -- Base card should be discarded
+            local targetPos = getDiscardLocation()
+            local targetRot = {0, 180, 0}
+
+            -- Need to always retest if the deck still exists
+            if source_obj and getObjectFromGUID(source_obj_guid) and source_obj.remainder == nil then
+              source_obj.takeObject({guid=cur_card.guid, position=targetPos, rotation=targetRot})
+            else
+              local cur_card_obj = getObjectFromGUID(cur_card.guid)
+              cur_card_obj.setPositionSmooth(targetPos)
+              cur_card_obj.setRotationSmooth(targetRot)
+            end
+          end
+        end
+      else
+        -- Upgrade cards should return to the upgrade deck. Base cards should go to a global discard pile
+        if Global.call('IsUpgradeCard', source_obj.getGUID()) then
+          -- Upgrade card. Put all the upgraded cards back in their original decks
+          local reward_deck_info = Global.getTable('PLAYER_REWARD_DECKS')
+          if reward_deck_info[requestingPlayerColor] ~= nil and reward_deck_info[requestingPlayerColor]["Upgrade"] ~= nil then
+            local targetPos = reward_deck_info[requestingPlayerColor]["Upgrade"]
+            targetPos[2] = targetPos[2] + 1
+            local targetRot = {0, 180, 180}
+
+            source_obj.setPositionSmooth(targetPos)
+            source_obj.setRotationSmooth(targetRot)
+          else
+            broadcastToColor("WARNING: Unable to find upgrade deck to return upgrade card.", requestingPlayerColor)
+          end
+        else
+          --Base card
+          local targetPos = getDiscardLocation()
+          local targetRot = {0, 180, 0}
+
+          source_obj.setPositionSmooth(targetPos)
+          source_obj.setRotationSmooth(targetRot)
+        end
+      end
+    end
+  end
+
+  -- Get the associated card for the object that was on top
+  local associated_target_obj_guid = Global.call('GetAssociatedUpgradeCardGUID', top_source_obj_guid)
+  Global.call('FindAndDeployObjectExternal', {associated_target_obj_guid, target_pos, self.getRotation()})
+end
+
+function getDiscardLocation()
+  local toolPos = self.getPosition()
+  return Global.call("getPlayerDiscardLocation", toolPos)
+end
+
+function getSlotPosition()
+  local X_OFFSET = 0
+  local Z_OFFSET = 0.135
+  local object_scale = self.getScale()
+  local expected_scale = {0.18, 0.18, 0.18}
+  local base_scale = {2.46, 2, 3.38}
+  local scale_factor = {object_scale[1] / expected_scale[1], object_scale[2] / expected_scale[2], object_scale[3] / expected_scale[3]}
+  local target_scale = {scale_factor[1] * base_scale[1], scale_factor[2] * base_scale[2], scale_factor[3] * base_scale[3]}
+
+  local base_pos = self.getPosition()
+
+  local local_x_offset = (X_OFFSET * scale_factor[1]) * math.cos(math.rad(self.getRotation()[2])) + (Z_OFFSET * scale_factor[3]) * math.sin(math.rad(self.getRotation()[2]))
+  local local_z_offset = (Z_OFFSET * scale_factor[3]) * math.cos(math.rad(self.getRotation()[2])) - (X_OFFSET * scale_factor[1]) * math.sin(math.rad(self.getRotation()[2]))
+  local pos = {base_pos.x + local_x_offset, base_pos.y, base_pos.z + local_z_offset}
+  return pos
+end
+
+-- Takes a list of objects and returns the one on top. Optional if you require that the object is face up
+function getObjectGUIDOnTop(objList, requireFaceup)
+  local topObj = nil
+  for _, obj in ipairs(objList) do
+    if topObj == nil or obj.getPosition().y > topObj.getPosition().y then
+      if not requireFaceup or (obj.getRotation().z > 135 or obj.getRotation().z < -135) then
+        topObj = obj
+      end
+    end
+  end
+
+  if topObj.name == "Deck" or topObj.name == "DeckCustom" then
+    if topObj.getRotation().z > 135 or topObj.getRotation().z < -135 then
+      return topObj.getObjects()[1].guid
+    else
+      return topObj.getObjects()[#topObj.getObjects()].guid
+    end
+  end
+
+  return topObj.getGUID()
+end
+
+-- Retrieves objects on the tool and calls the associated callback with the results. Does this by spawning a temporary scripting zone on each area and getting objects
+function getObjectsAsync(callback_function, callback_func_args)
+  -- Internal coroutine
+  function setupScriptingZonesInternal()
+    local object_scale = self.getScale()
+    local expected_scale = {0.18, 0.18, 0.18}
+    local base_scale = {2.46, 2, 3.38}
+    local scale_factor = {object_scale[1] / expected_scale[1], object_scale[2] / expected_scale[2], object_scale[3] / expected_scale[3]}
+    local target_scale = {scale_factor[1] * base_scale[1], scale_factor[2] * base_scale[2], scale_factor[3] * base_scale[3]}
+
+    local zone = createScriptingZone(getSlotPosition(), self.getRotation(), target_scale)
+
+    callback_function(zone.getObjects(), callback_func_args)
+
+    zone.destruct()
+    return 1
+  end
+
+  startLuaCoroutine(self, "setupScriptingZonesInternal")
+end
+
+function createScriptingZone(position, rot, scale)
+    local zone = spawnObject({type='ScriptingTrigger', position=position, rotation=rot, scale=scale})
+    repeat
+        coroutine.yield(0)
+    until zone.getGUID() ~= nil
+    return zone
+end
+
+function setupSnapPoints()
+  -- Add Snap points for the card area
+  local mat_scale = self.getScale()
+  local snap_points = {}
+
+  local X_OFFSET = 0
+  local Z_OFFSET = 0.135
+
+  local pos = {X_OFFSET, 0, Z_OFFSET}
+
+  table.insert(snap_points, {position = {pos[1] / mat_scale[1], 0.0, pos[3] / mat_scale[3]}, rotation_snap = true})
+  self.setSnapPoints(snap_points)
+end

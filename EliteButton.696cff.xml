@@ -1,0 +1,2 @@
+<Image id="Button" image="EliteIcon" width="150" height="150" onClick="StartElite" tooltip="Start an Elite Encounter" tooltipPosition="Below" active="false"></Image>
+<Image id="1stEncounter" image="EncounterIcon" width="150" height="150" onClick="StartFirstEncounter" tooltip="Start 1st Encounter" tooltipPosition="Below" active="false"></Image>

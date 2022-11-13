@@ -1,0 +1,1 @@
+<Image id="Button" image="EncounterIcon" width="150" height="150" onClick="StartEncounter" tooltip="Start an Encounter" tooltipPosition="Below" active="false"></Image>
