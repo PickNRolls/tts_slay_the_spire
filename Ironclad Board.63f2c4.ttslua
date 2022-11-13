@@ -1,0 +1,412 @@
+function onLoad(saved_game_data)
+
+  CHARACTER_NAME = "Ironclad"
+  TRACK_INFO = {
+    ["Energy"] = {
+      ["Starting"] = 3,
+      ["Total"] = 6
+    },
+    ["Block"] = {
+      ["Starting"] = 0,
+      ["Total"] = 10
+    },
+    ["HP"] = {
+      -- NOTE: This one is off by 1 from the display as the others go from 0-max, and HP goes from 1-max
+      ["Starting"] = 9,
+      ["Total"] = 9
+    },
+  }
+  CUBE_GUIDS = {"6b768d", "f004d4", "e43df4"}
+  STANDEE_GUID = "b9ce26"
+  PLAYMAT_GUID = "2ddbb4"
+
+  DECK_GUIDS = {
+    ["Starter"] = {
+      ["Base"] = "3a0392",
+      ["Upgrades"] = "dcdd4a",
+    },
+    ["Rewards"] = {
+      ["Base"] = "6355da",
+      ["Upgrades"] = "9a4007",
+    },
+    ["Rare"] = {
+      ["Base"] = "2b8379",
+      ["Upgrades"] = "c16bb3",
+    },
+  }
+
+  ASCENSION_2_CUBE_GUID = "0119a1"
+
+  -- Class specific globals
+end
+
+function getButtonIndex(callbackFunction)
+  for _, button in ipairs(self.getButtons()) do
+    if button.click_function == callbackFunction then
+      return button.index
+    end
+  end
+  return nil
+end
+
+-- Returns a list of card GUIDs for all upgradable cards
+function getAllActiveCards()
+  local globalUpgradeInfo = Global.getTable('CARD_UPGRADE_INFO')
+  local all_card_list = {}
+  for card_guid, _ in pairs(globalUpgradeInfo) do
+    local card_obj = getObjectFromGUID(card_guid)
+    if card_obj then
+      table.insert(all_card_list, card_obj)
+    end
+  end
+  return all_card_list
+end
+
+function showCardUpgradeButton(card)
+  card.createButton({
+    click_function = "upgradeCard",
+    function_owner = self,
+    label          = "Swap Card",
+    position       = {0, 0.5, -1.75},
+    rotation       = {0, 0, 0},
+    --scale          = {1/self.getScale()[1], 1/self.getScale()[2], 1/self.getScale()[3]},
+    width          = 700,
+    height         = 75,
+    tooltip        = "",
+    font_color     = {0, 0, 0},
+    font_size      = 100,
+    color          = "White"
+  })
+end
+
+function enableButtonsForActiveCards()
+  local all_active_cards = getAllActiveCards()
+  for _, card in ipairs(all_active_cards) do
+    showCardUpgradeButton(card)
+  end
+end
+
+function upgradeCard(source_obj, player_clicker_color, alt_click)
+  source_obj.clearButtons()
+
+  local target_pos = source_obj.getPosition()
+  local source_obj_guid = source_obj.getGUID()
+  target_pos = source_obj.getPosition()
+  target_pos[2] = target_pos[2] + 0.5
+
+  -- Put this card back in its original deck
+  local original_source_deck_guid = Global.call('GetOriginalDeckGUID', source_obj.getGUID())
+  local original_deck = getObjectFromGUID(original_source_deck_guid)
+  if original_deck then
+    original_deck.putObject(source_obj)
+  else
+    broadcastToColor("WARNING: Unable to find original deck to replace source card (" .. tostring(source_obj.getGUID()) .. ").", requestingPlayerColor)
+  end
+
+  -- Get the associated card for the object that was on top
+  local associated_target_obj_guid = Global.call('GetAssociatedUpgradeCardGUID', source_obj.getGUID())
+  Global.call('FindAndDeployObjectExternal', {associated_target_obj_guid, target_pos, self.getRotation()})
+end
+
+function disableButtonsForActiveCards()
+  local all_active_cards = getAllActiveCards()
+  for _, card in ipairs(all_active_cards) do
+    card.clearButtons()
+  end
+end
+
+----------------------------------------------
+
+function GetWorldPosFromBoardOffset(offset)
+  local boardPos = self.getPosition()
+  local boardRot = self.getRotation()
+
+  local local_x_offset = offset[1] * math.cos(math.rad(self.getRotation()[2])) + offset[3] * math.sin(math.rad(self.getRotation()[2]))
+  local local_z_offset = offset[3] * math.cos(math.rad(self.getRotation()[2])) - offset[1] * math.sin(math.rad(self.getRotation()[2]))
+  local targetPos = {
+    boardPos.x + (local_x_offset),
+    boardPos.y + offset[2],
+    boardPos.z + local_z_offset
+  }
+  return targetPos
+end
+
+function setupSnapPoints()
+  local mat_scale = self.getScale()
+  local snap_points = {}
+
+  for track_type, cur_track_info in pairs(TRACK_INFO) do
+    for i=0, cur_track_info["Total"] do
+      local x_offset = Global.getVar("PLAYER_BOARD_TRACK_HORIZ_OFFSET") + (Global.getTable("PLAYER_BOARD_STEP")[track_type] * i)
+      local z_offset = Global.getTable("PLAYER_BOARD_TRACK_VERT_OFFSET")[track_type]
+
+      local total_offset = {x_offset, 0, z_offset}
+      table.insert(snap_points, {position = {total_offset[1] / mat_scale[1], 0.0, total_offset[3] / mat_scale[3]}, rotation_snap = true})
+    end
+  end
+
+  self.setSnapPoints(snap_points)
+end
+
+function deployPlaymat()
+  local characterBag = getObjectFromGUID(Global.getTable("CHARACTER_INFO")[CHARACTER_NAME]["Bag"])
+  local target_pos = GetWorldPosFromBoardOffset({-1.55, -0.02, -1.87})
+  local playMat = characterBag.takeObject({guid=PLAYMAT_GUID, position=target_pos, rotation=self.getRotation()})
+  Wait.frames(function()
+    local playMatScale = playMat.getScale()
+    playMat.setSnapPoints({
+      {position = {-1.35/playMatScale[1], 0, 1.92/playMatScale[3]}, rotation_snap = true},    -- Draw
+      {position = {-2.37/playMatScale[1], 0, 1.92/playMatScale[3]}, rotation_snap = true},    -- Discard
+      {position = {2.37/playMatScale[1], 0, 1.92/playMatScale[3]}, rotation_snap = true},     -- Exhaust
+    })
+  end, 1)
+
+  Global.call("delayedComponentLock", {PLAYMAT_GUID, 2})
+
+  self.setPositionSmooth({self.getPosition().x, self.getPosition().y + 0.5, self.getPosition().z})
+end
+
+function setupBoard()
+  local characterBag = getObjectFromGUID(Global.getTable("CHARACTER_INFO")[CHARACTER_NAME]["Bag"])
+
+  setupSnapPoints()
+
+  -- Make adjustments for ascension levels
+  local ascensionLevel = Global.getVar("ASCENSION_LEVEL")
+  if ascensionLevel >= 2 then
+    -- Put a black cube on the old starting HP value
+    local blackCube = getObjectFromGUID(ASCENSION_2_CUBE_GUID)
+    if blackCube then
+      local x_offset = Global.getVar("PLAYER_BOARD_TRACK_HORIZ_OFFSET") + (Global.getTable("PLAYER_BOARD_STEP")["HP"] * TRACK_INFO["HP"]["Starting"])
+      local target_pos = GetWorldPosFromBoardOffset({x_offset, 1, Global.getTable("PLAYER_BOARD_TRACK_VERT_OFFSET")["HP"]})
+      blackCube.setPositionSmooth(target_pos)
+    else
+      broadcastToAll("WARNING: Unable find Black Cube to lower starting health for " .. tostring(CHARACTER_NAME))
+    end
+
+    -- Lower max HP by 1
+    TRACK_INFO["HP"]["Starting"] = TRACK_INFO["HP"]["Starting"] - 1
+  end
+
+  if ascensionLevel >= 8 then
+    -- Lower max HP by 1
+    TRACK_INFO["HP"]["Starting"] = TRACK_INFO["HP"]["Starting"] - 1
+  end
+
+  -- Setup the cubes
+  local cur_idx = 1
+  for track_type, cur_track_info in pairs(TRACK_INFO) do
+    local x_offset = Global.getVar("PLAYER_BOARD_TRACK_HORIZ_OFFSET") + (Global.getTable("PLAYER_BOARD_STEP")[track_type] * TRACK_INFO[track_type]["Starting"])
+
+    local target_pos = GetWorldPosFromBoardOffset({x_offset, 1, Global.getTable("PLAYER_BOARD_TRACK_VERT_OFFSET")[track_type]})
+    characterBag.takeObject({guid = CUBE_GUIDS[cur_idx], position=target_pos})
+    cur_idx = cur_idx + 1
+  end
+
+  -- Deploy the standee and the model to the right of the board
+  local target_pos = GetWorldPosFromBoardOffset({-8.5, 0.5, -3.5})
+  local target_rot = {0, 180, 0}
+  local standee = getObjectFromGUID(STANDEE_GUID)
+  if standee then
+    standee.setPositionSmooth(target_pos)
+    standee.setRotationSmooth(target_rot)
+  else
+    characterBag.takeObject({guid=STANDEE_GUID, position=target_pos, rotation=target_rot})
+  end
+
+  -- Setup Decks
+  local face_down_rot = self.getRotation()
+  face_down_rot[3] = 180
+  local face_up_rot = self.getRotation()
+  local starterDeck = getObjectFromGUID(DECK_GUIDS["Starter"]["Base"])
+  if starterDeck then
+    local starter_target_pos = GetWorldPosFromBoardOffset({-5.65, 0.5, 0.05})
+    starterDeck.shuffle()
+    starterDeck.setPositionSmooth(starter_target_pos)
+    starterDeck.setRotationSmooth(face_down_rot)
+  else
+    broadcastToAll("WARNING: Unable to find " .. CHARACTER_NAME .. " starter deck")
+  end
+
+  -- If ascension is >=5, then take an "Ascender's Bane" card
+  if ascensionLevel >= 5 then
+    local ascendersBaneDeck = Global.getVar("ASCENDERS_BANE_DECK")
+    if ascendersBaneDeck then
+      if ascendersBaneDeck.name == "Deck" or ascendersBaneDeck.name == "DeckCustom" then
+        starterDeck.putObject(ascendersBaneDeck.takeObject())
+        if ascendersBaneDeck.remainder then
+          Global.setVar("ASCENDERS_BANE_DECK", ascendersBaneDeck.remainder)
+        end
+      else
+        starterDeck.putObject(ascendersBaneDeck)
+      end
+
+      Wait.frames(function()
+        starterDeck.shuffle()
+      end, 1)
+    else
+      broadcastToAll("WARNING: Unable to find Ascender's ")
+    end
+  end
+
+  local rewardDeck = getObjectFromGUID(DECK_GUIDS["Rewards"]["Base"])
+  local deck_info = Global.getTable("PLAYER_REWARD_DECKS")[Global.call('getPlayerColorForCharacter', CHARACTER_NAME)]
+  if rewardDeck then
+    --local reward_target_pos = GetWorldPosFromBoardOffset({5.5, 0.5, 0})
+    local reward_target_pos = deck_info["Reward"]
+    rewardDeck.shuffle()
+    rewardDeck.setPositionSmooth(reward_target_pos)
+    rewardDeck.setRotationSmooth(deck_info["Rotation"])
+
+    -- Add the text object
+    local rewardText = getObjectFromGUID(deck_info["RewardText"])
+    if rewardText then
+      rewardText.setPosition(deck_info["RewardTextPos"])
+      rewardText.TextTool.setValue("Reward\nDeck")
+    end
+  else
+    broadcastToAll("WARNING: Unable to find " .. CHARACTER_NAME .. " reward deck")
+  end
+
+  local rareRewardDeck = getObjectFromGUID(DECK_GUIDS["Rare"]["Base"])
+  if rareRewardDeck then
+    --local rare_target_pos = GetWorldPosFromBoardOffset({8.25, 0.5, 0})
+    local rare_target_pos = deck_info["Rare"]
+    rareRewardDeck.shuffle()
+    rareRewardDeck.setPositionSmooth(rare_target_pos)
+    rareRewardDeck.setRotationSmooth(deck_info["Rotation"])
+
+    -- Add the text object
+    local rewardText = getObjectFromGUID(deck_info["RareText"])
+    if rewardText then
+      rewardText.setPosition(deck_info["RareTextPos"])
+      rewardText.TextTool.setValue("Rare\nDeck")
+    end
+  else
+    broadcastToAll("WARNING: Unable to find " .. CHARACTER_NAME .. " rare reward deck")
+  end
+
+  -- Upgrade decks get combined
+  local starterUpgradeDeck = getObjectFromGUID(DECK_GUIDS["Starter"]["Upgrades"])
+  local upgrade_target_pos = deck_info["Upgrade"]
+  local upgrade_target_rot = {0, 180, 180}
+  if starterUpgradeDeck then
+    starterUpgradeDeck.setPositionSmooth(upgrade_target_pos)
+    starterUpgradeDeck.setRotationSmooth(upgrade_target_rot)
+  else
+    broadcastToAll("WARNING: Unable to find " .. CHARACTER_NAME .. " starter upgrade deck")
+  end
+
+  local rewardUpgradeDeck = getObjectFromGUID(DECK_GUIDS["Rewards"]["Upgrades"])
+  if rewardUpgradeDeck then
+    rewardUpgradeDeck.setPositionSmooth(upgrade_target_pos)
+    rewardUpgradeDeck.setRotationSmooth(upgrade_target_rot)
+  else
+    broadcastToAll("WARNING: Unable to find " .. CHARACTER_NAME .. " reward upgrade deck")
+  end
+
+  local rareUpgradeDeck = getObjectFromGUID(DECK_GUIDS["Rare"]["Upgrades"])
+  if rareUpgradeDeck then
+    rareUpgradeDeck.setPositionSmooth(upgrade_target_pos)
+    rareUpgradeDeck.setRotationSmooth(upgrade_target_rot)
+  else
+    broadcastToAll("WARNING: Unable to find " .. CHARACTER_NAME .. " rare upgrade deck")
+  end
+
+  -- Add the text object
+  local rewardText = getObjectFromGUID(deck_info["UpgradeText"])
+  if rewardText then
+    local upgrade_text_pos = upgrade_target_pos
+    upgrade_text_pos[2] = 1
+    upgrade_text_pos[3] = upgrade_text_pos[3] - 2.33
+    rewardText.setPosition(upgrade_text_pos)
+    rewardText.setRotation({90, 0, 0})
+    rewardText.TextTool.setValue("Upgrade\nDeck")
+  end
+
+  -- Pull a Neow card
+  local neowDeck = Global.getVar("NEOW_DECK")
+  if neowDeck then
+    local target_pos = GetWorldPosFromBoardOffset({-2.8, 0.5, 4.83})
+    local target_rot = self.getRotation()
+    target_rot[3] = 0
+    local neowCard = neowDeck.takeObject({position=target_pos, rotation=target_rot})
+    Global.call('registerNeowCardForReturn', neowCard.guid)
+  end
+
+  -- Clone the upgrader tool
+  local upgrader_tool = getObjectFromGUID(Global.getVar("UPGRADE_TOOL"))
+  local target_pos = deck_info["UpgradeTool"]
+  local target_rot = deck_info["Rotation"]
+  target_rot[3] = 0
+  upgrader_tool.clone({position=target_pos, rotation=target_rot})
+
+  -- Give 3 gold
+  for i=1,3 do
+    local local_x_offset = 2.18
+    local local_y_offset = i * 0.5
+    local local_z_offset = -2.64
+    local target_pos = GetWorldPosFromBoardOffset({local_x_offset, local_y_offset, local_z_offset})
+    local token = Global.call('getUnusedGoldToken')
+    if token then
+      token.setPositionSmooth(target_pos)
+    end
+  end
+
+  -- Solo rewards
+  local isSoloMode = Global.getVar("SOLO_MODE")
+  if isSoloMode then
+    local soloRewards = Global.getTable("SOLO_REWARDS")
+    for i, gold_guid in ipairs(soloRewards["Gold"]) do
+      local local_x_offset = 3.43
+      local local_y_offset = (i+3) * 0.5
+      local local_z_offset = -2.64
+      local target_pos = GetWorldPosFromBoardOffset({local_x_offset, local_y_offset, local_z_offset})
+      local token = getObjectFromGUID(gold_guid)
+      if token then
+        token.setPositionSmooth(target_pos)
+      end
+    end
+
+    local kindling = getObjectFromGUID(soloRewards["Kindling"])
+    if kindling then
+      local target_pos = GetWorldPosFromBoardOffset({2.805, 0.5, -4.98})
+      kindling.setPositionSmooth(target_pos)
+      kindling.setRotationSmooth(self.getRotation())
+    else
+      broadcastToAll("WARNING: Unable to find Kindling solo card")
+    end
+  end
+
+  -- Class specific setup
+end
+
+
+function putAwayIfFound(guid)
+  if guid ~= nil then
+    local characterBag = getObjectFromGUID(Global.getTable("CHARACTER_INFO")[CHARACTER_NAME]["Bag"])
+    if characterBag then
+      local obj = getObjectFromGUID(guid)
+      if obj then
+        characterBag.putObject(obj)
+      end
+    end
+  end
+end
+
+function packAway()
+  for _, cube_guid in ipairs(CUBE_GUIDS) do
+    putAwayIfFound(cube_guid)
+  end
+  putAwayIfFound(STANDEE_GUID)
+
+  for deck_type, _ in pairs(DECK_GUIDS) do
+    putAwayIfFound(DECK_GUIDS[deck_type]["Base"])
+    putAwayIfFound(DECK_GUIDS[deck_type]["Upgrades"])
+  end
+
+  -- Class specific objects
+
+
+  putAwayIfFound(self.getGUID())
+end
