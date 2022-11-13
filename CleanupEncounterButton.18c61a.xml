@@ -1,1 +1,0 @@
-<Button id="Button" outline="Black" color="#C0C0C0" outlineSize="3 3" width="300" height="65" fontSize="35" onClick="CleanupEncounter" active="false">Remove Enemies</Button>

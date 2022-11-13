@@ -1,9 +1,0 @@
-<!-- Xml UI. See documentation: https://api.tabletopsimulator.com/ui/introUI/ -->
-<Image image="Watcher" tooltip="Configure camera control shortcuts" tooltipPosition="Below" onClick="OpenCameraControls" active="false"></Image>
-<Image image="Defect" tooltip="Configure camera control shortcuts" tooltipPosition="Below" onClick="OpenCameraControls" active="false"></Image>
-<Image image="Ironclad" tooltip="Configure camera control shortcuts" tooltipPosition="Below" onClick="OpenCameraControls" active="false"></Image>
-<Image image="Silent" tooltip="Configure camera control shortcuts" tooltipPosition="Below" onClick="OpenCameraControls" active="false"></Image>
-
-<Image image="EncounterIcon" active="false"></Image>
-<Image image="EliteIcon" active="false"></Image>
-<Image image="BossIcon" active="false"></Image>
