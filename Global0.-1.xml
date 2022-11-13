@@ -1,4 +1,4 @@
-<Defaults>
+<!-- <Defaults>
   <Text fontSize="30" color="White" alignment="MiddleLeft"/>
   <Panel height="1500" width="1200" color="rgba(0.6, 0.6, 0.6, 0)" outline="Black" outlineSize="2 -2"/>
   <Toggle toggleWidth="50" toggleHeight="50"/>
@@ -35,4 +35,4 @@
       <Slider id="ascensionSlider" offsetXY="200 30" width="500" fillColor="green" handleColor="green" minValue="0" maxValue="10" value="0" wholeNumbers="true" onValueChanged="updateAscension" tooltip="Ascension adds difficulty to the game."/>
       <Button textAlignment="MiddleCenter" width="300" onClick="StartGame" height="75" fontSize="50" offsetXY="0 -75">Start Game</Button>
     </Panel>
-</Panel>
+</Panel> -->

@@ -1,7 +1,0 @@
-function StartElite(player)
-  Global.call('spawnElite')
-end
-
-function StartFirstEncounter(player)
-  Global.call('initiateFirstEncounter')
-end

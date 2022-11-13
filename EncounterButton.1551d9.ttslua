@@ -1,3 +1,0 @@
-function StartEncounter(player)
-  Global.call('spawnBaseEncounter')
-end

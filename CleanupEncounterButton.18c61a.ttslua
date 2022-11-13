@@ -1,3 +1,0 @@
-function CleanupEncounter(player)
-  Global.call('cleanupEncounters')
-end

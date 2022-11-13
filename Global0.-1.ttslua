@@ -24,10 +24,14 @@ function onLoad()
     })
     hand_zone.setRotation({
       x = 0,
-      y = 0,
+      y = 180,
       z = 0
     })
-    local bounds = hand_zone.getBoundsNormalized()
-    print(bounds.size.z)
   end
+end
+
+function onObjectPickUp(player_color, picked_up_object)
+  print(player_color)
+  print(picked_up_object.name)
+  print(picked_up_object.guid)
 end
