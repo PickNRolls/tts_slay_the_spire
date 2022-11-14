@@ -1,0 +1,75 @@
+function onLoad()
+    self.UI.setAttributes("main", {
+      rotation = "0 0 180",
+      scale = "0.21 0.21 1",
+      position = "0 0 -200"
+    })
+end
+
+function handleCharacterClick(player, character)
+  local playerCharacter = Global.call("getAssignedCharacterToPlayer", {
+    color = player.color
+  })
+
+  if (playerCharacter != character and
+    not Global.call("canAssignCharacterToPlayer", {
+      character = character,
+      color = player.color
+    })) then
+    broadcastToColor("You can't take "..character..".", player.color)
+    return
+  end
+
+  if playerCharacter != nil and Global.call("canUnsignCharacterFromPlayer", {
+      character = playerCharacter,
+      color = player.color
+    }) then
+    Global.call("unsignCharacterFromPlayer", {
+      color = player.color
+    })
+    self.UI.setAttribute("Outline_"..playerCharacter, "color", "")
+    self.UI.setAttributes("Button_"..playerCharacter, {
+      ["color"] = "White",
+      ["textColor"] = "Black"
+    })
+  end
+
+  if playerCharacter == character then
+    return
+  end
+
+  Global.call("assignCharacterToPlayer", {
+    character = character,
+    color = player.color
+  })
+  self.UI.setAttribute("Outline_"..character, "color", player.color)
+  self.UI.setAttributes("Button_"..character, {
+    color = player.color,
+    textColor = "white"
+  })
+end
+
+function characterSelect_Silent(player)
+  local silent = Global.getTable("CHARACTERS")[2]
+  handleCharacterClick(player, silent)
+end
+
+function characterSelect_Ironclad(player)
+  local ironclad = Global.getTable("CHARACTERS")[1]
+  handleCharacterClick(player, ironclad)
+end
+
+function characterSelect_Watcher(player)
+  local watcher = Global.getTable("CHARACTERS")[4]
+  handleCharacterClick(player, watcher)
+end
+
+function characterSelect_Defect(player)
+  local defect = Global.getTable("CHARACTERS")[3]
+  handleCharacterClick(player, defect)
+end
+
+function startGame()
+  local data = Global.getTable("PLAYERS_DATA")
+  log(JSON.encode_pretty(data))
+end

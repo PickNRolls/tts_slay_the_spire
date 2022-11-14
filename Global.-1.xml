@@ -1,0 +1,38 @@
+<!-- <Defaults>
+  <Text fontSize="30" color="White" alignment="MiddleLeft"/>
+  <Panel height="1500" width="1200" color="rgba(0.6, 0.6, 0.6, 0)" outline="Black" outlineSize="2 -2"/>
+  <Toggle toggleWidth="50" toggleHeight="50"/>
+</Defaults>
+
+<Panel>
+    <Panel height="650" alignment="LowerCenter" offsetXY="0 50">
+      <Panel color="#4f4f4f" height="100" width="600" offsetXY="0 285" outlineSize="4 -4"/>
+      <Text alignment="UpperCenter" fontSize="75" color="White">Character Select</Text>
+
+      <Panel height="450" alignment="LowerCenter" offsetXY="0 -25">
+        <Panel id="Outline_Ironclad" width="390" height="237" offsetXY="-300 100" color="rgba(0, 0, 0, 0)"/>
+        <Image image="Ironclad" width="350" height="197" onClick="CharacterSelect_Ironclad" offsetXY="-300 100" tooltip="The remaining soldier of the Ironclads. Sold his soul to harness demonic energies."></Image>
+        <Button id="Button_Ironclad" outline="Black" outlineSize="5 5" textAlignment="MiddleCenter" width="300" height="65" fontSize="35" offsetXY="-300 -65" onClick="CharacterSelect_Ironclad">The Ironclad</Button>
+
+        <Panel id="Outline_Silent" width="390" height="237" offsetXY="300 100" color="rgba(0, 0, 0, 0)"/>
+        <Image image="Silent" width="350" height="197" onClick="CharacterSelect_Silent" offsetXY="300 100" tooltip="A deadly huntress from the foglands. Eradicates foes with daggers and poisons."></Image>
+        <Button id="Button_Silent" outline="Black" outlineSize="5 5" textAlignment="MiddleCenter" width="300"  height="65" fontSize="35" offsetXY="300 -65" onClick="CharacterSelect_Silent">The Silent</Button>
+
+        <Panel id="Outline_Defect" width="390" height="237" offsetXY="-300 -280" color="rgba(0, 0, 0, 0)"/>
+        <Image image="Defect" width="350" height="197" onClick="CharacterSelect_Defect" offsetXY="-300 -280" tooltip="Combat automation which became self-aware. Ancient technology allows manipulation of Orbs."></Image>
+        <Button id="Button_Defect" outline="Black" outlineSize="5 5" textAlignment="MiddleCenter" width="300"  height="65" fontSize="35" offsetXY="-300 -445" onClick="CharacterSelect_Defect">The Defect</Button>
+
+        <Panel id="Outline_Watcher" width="390" height="237" offsetXY="300 -280" color="rgba(0, 0, 0, 0)"/>
+        <Image image="Watcher" width="350" height="197" onClick="CharacterSelect_Watcher" offsetXY="300 -280" tooltip='A blind ascetic who has come to "Evaluate" the Spire. Master of the divine Stances.'></Image>
+        <Button id="Button_Watcher" outline="Black" outlineSize="5 5" textAlignment="MiddleCenter" width="300"  height="65" fontSize="35" offsetXY="300 -445" onClick="CharacterSelect_Watcher">The Watcher</Button>
+      </Panel>
+    </Panel>
+
+    <Panel height="200" alignment="LowerCenter" offsetXY="0 -625">
+      <Toggle id="soloMode" offsetXY="-25 100" alignment="MiddleCenter" fontSize="50" isOn="true" tooltip="If this is enabled, +2 gold and Kindling - Solo Bonus card are given to the player" onValueChanged="soloModeChanged"/>
+      <Text id="soloModeText" offsetXY="200 100" alignment="MiddleLeft" fontSize="50">Solo Mode:</Text>
+      <Text id="ascensionText" offsetXY="200 30" alignment="MiddleLeft" fontSize="50">Ascension: 0</Text>
+      <Slider id="ascensionSlider" offsetXY="200 30" width="500" fillColor="green" handleColor="green" minValue="0" maxValue="10" value="0" wholeNumbers="true" onValueChanged="updateAscension" tooltip="Ascension adds difficulty to the game."/>
+      <Button textAlignment="MiddleCenter" width="300" onClick="StartGame" height="75" fontSize="50" offsetXY="0 -75">Start Game</Button>
+    </Panel>
+</Panel> -->

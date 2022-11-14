@@ -5,29 +5,73 @@ HAND_GUID_BY_COLOR = {
   Pink = "32fa24"
 }
 
-function onLoad()
-  local table_object = Tables.getTableObject()
-  local table_position = table_object.getPosition()
-  local table_bounds = table_object.getBounds()
+CHARACTERS = {"Ironclad", "Silent", "Defect", "Watcher"}
+PLAYERS_DATA = {
+  Red = {},
+  Green = {},
+  Blue = {},
+  Pink = {},
+}
 
+function onLoad()
   for index, color in ipairs({ "Red", "Green", "Blue", "Pink" }) do
-    local hand_zone = getObjectFromGUID(HAND_GUID_BY_COLOR[color])
-    hand_zone.setScale({
+    local handZone = getObjectFromGUID(HAND_GUID_BY_COLOR[color])
+    handZone.setScale({
       x = 15.3268948,
       y = 11.8970528,
       z = 6.35014534
     })
-    hand_zone.setPosition({
+    handZone.setPosition({
       x = -60 + 24 * index,
       y = 3.29337835,
       z = -34.42515,
     })
-    hand_zone.setRotation({
+    handZone.setRotation({
       x = 0,
-      y = 0,
+      y = 180,
       z = 0
     })
-    local bounds = hand_zone.getBoundsNormalized()
-    print(bounds.size.z)
   end
+end
+
+function onObjectPickUp(playerColor, pickedUpObject)
+  print(playerColor)
+  print(pickedUpObject.name)
+  print(pickedUpObject.guid)
+end
+
+function getAssignedCharacterToPlayer(arguments)
+  local color = arguments.color
+  return PLAYERS_DATA[color].character
+end
+
+function canAssignCharacterToPlayer(arguments)
+  local character = arguments.character
+  local color = arguments.color
+  for color, data in pairs(PLAYERS_DATA) do
+    if data.character != nil and data.character == character then
+      return false
+    end
+  end
+  return true
+end
+
+function assignCharacterToPlayer(arguments)
+  local character = arguments.character
+  local color = arguments.color
+  PLAYERS_DATA[color].character = character
+end
+
+function canUnsignCharacterFromPlayer(arguments)
+  local character = arguments.character
+  local color = arguments.color
+
+  return PLAYERS_DATA[color].character != nil and
+    PLAYERS_DATA[color].character == character
+end
+
+function unsignCharacterFromPlayer(arguments)
+  local color = arguments.color
+
+  PLAYERS_DATA[color].character = nil
 end
