@@ -1,3 +1,7 @@
+function createMachine()
+
+end
+
 CHARACTERS = {"Ironclad", "Silent", "Defect", "Watcher"}
 PLAYERS_DATA = {
   Red = {},
@@ -83,6 +87,40 @@ function unsignCharacterFromPlayer(arguments)
 
   PLAYERS_DATA[color].character = nil
 end
+
+local gameStateMachine = createMachine({
+  initial = "Idle",
+  states = {
+    Idle = {
+      on = {
+        startGame = {
+          target = "Starting"
+        }
+      }
+    },
+    Starting = {
+      initial = "SetupInProgress",
+      states = {
+        SetupInProgress = {
+          on = {
+            endSetup = {
+              target = "SetupDone"
+            }
+          }
+        },
+        SetupDone = {
+          type = "final"
+        }
+      },
+      onDone = {
+        target = "Ready"
+      }
+    },
+    Ready = {
+      type = "final"
+    }
+  }
+})
 
 function startGame()
   log("Starting game...")
