@@ -1,30 +1,29 @@
 CHARACTERS = {"Ironclad", "Silent", "Defect", "Watcher"}
 PLAYERS_DATA = {
-  Red = {
-    hand = {
-      guid = "198286"
-    }
+  Red = {},
+  Green = {},
+  Blue = {},
+  Pink = {},
+}
+
+OBJECTS = {
+  characterBoards = {
+    [CHARACTERS[1]] = "63f2c4",
+    [CHARACTERS[2]] = "9ee996",
+    [CHARACTERS[3]] = "b293d2",
+    [CHARACTERS[4]] = "60b3de"
   },
-  Green = {
-    hand = {
-      guid = "761a86"
-    }
-  },
-  Blue = {
-    hand = {
-      guid = "507348"
-    }
-  },
-  Pink = {
-    hand = {
-      guid = "32fa24"
-    }
-  },
+  playerHands = {
+    Red = "198286",
+    Green = "761a86",
+    Blue = "507348",
+    Pink = "32fa24"
+  }
 }
 
 function onLoad()
   for index, color in ipairs({ "Red", "Green", "Blue", "Pink" }) do
-    local handZone = getObjectFromGUID(PLAYERS_DATA[color].hand.guid)
+    local handZone = getObjectFromGUID(OBJECTS.playerHands[color])
     handZone.setScale({
       x = 15.3268948,
       y = 11.8970528,
@@ -88,4 +87,14 @@ end
 function startGame()
   log("Starting game...")
   log(JSON.encode_pretty(PLAYERS_DATA))
+
+  local all_players = {}
+  for color, data in pairs(PLAYERS_DATA) do
+    if data.character != nil then
+      table.insert(all_players, color)
+    end
+  end
+
+  log("All players:")
+  log(JSON.encode_pretty(all_players))
 end
