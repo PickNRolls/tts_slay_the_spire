@@ -1,21 +1,30 @@
-HAND_GUID_BY_COLOR = {
-  Red = "198286",
-  Green = "761a86",
-  Blue = "507348",
-  Pink = "32fa24"
-}
-
 CHARACTERS = {"Ironclad", "Silent", "Defect", "Watcher"}
 PLAYERS_DATA = {
-  Red = {},
-  Green = {},
-  Blue = {},
-  Pink = {},
+  Red = {
+    hand = {
+      guid = "198286"
+    }
+  },
+  Green = {
+    hand = {
+      guid = "761a86"
+    }
+  },
+  Blue = {
+    hand = {
+      guid = "507348"
+    }
+  },
+  Pink = {
+    hand = {
+      guid = "32fa24"
+    }
+  },
 }
 
 function onLoad()
   for index, color in ipairs({ "Red", "Green", "Blue", "Pink" }) do
-    local handZone = getObjectFromGUID(HAND_GUID_BY_COLOR[color])
+    local handZone = getObjectFromGUID(PLAYERS_DATA[color].hand.guid)
     handZone.setScale({
       x = 15.3268948,
       y = 11.8970528,
@@ -74,4 +83,9 @@ function unsignCharacterFromPlayer(arguments)
   local color = arguments.color
 
   PLAYERS_DATA[color].character = nil
+end
+
+function startGame()
+  log("Starting game...")
+  log(JSON.encode_pretty(PLAYERS_DATA))
 end
