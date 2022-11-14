@@ -1,3 +1,10 @@
+function waitFrames(frames) --This function can only be used inside a coroutine because it is using coroutine.yield()
+   while frames > 0 do --loop until frames = 0
+      coroutine.yield(0) --this will wait 1 frame, reguardless of the number put inside coroutine.yield(#)
+      frames = frames - 1 --decrement frames every loop
+   end
+end
+
 function onLoad(saved_game_data)
   CHARACTER_NAME = "Silent"
   TRACK_INFO = {
@@ -54,18 +61,57 @@ function onLoad(saved_game_data)
   }
 end
 
-function GetWorldPosFromBoardOffset(offset)
-  local boardPos = self.getPosition()
-  local boardRot = self.getRotation()
+function setupForPlayer(arguments)
+  function setupCoroutine()
+    local OBJECTS = Global.getTable("OBJECTS")
+    local PLAYERS_DATA = Global.getTable("PLAYERS_DATA")
+    local color = arguments.color
+    local handZone = getObjectFromGUID(OBJECTS.playerHands[color])
+    local character = PLAYERS_DATA[color].character
+    local characterBoard = getObjectFromGUID(OBJECTS.characterBoards[character])
+    local characterBag = getObjectFromGUID(OBJECTS.characterBags[character])
+    characterBoard.scale(1.8)
+    local boardBounds = characterBoard.getBoundsNormalized()
+    local handZonePosition = handZone.getPosition()
+    characterBoard.setPositionSmooth({
+      x = handZonePosition.x,
+      y = handZonePosition.y,
+      z = handZonePosition.z + 10
+    }, false, true)
+    characterBoard.interactable = false
 
-  local local_x_offset = offset[1] * math.cos(math.rad(self.getRotation()[2])) + offset[3] * math.sin(math.rad(self.getRotation()[2]))
-  local local_z_offset = offset[3] * math.cos(math.rad(self.getRotation()[2])) - offset[1] * math.sin(math.rad(self.getRotation()[2]))
-  local targetPos = {
-    boardPos.x + (local_x_offset),
-    boardPos.y + offset[2],
-    boardPos.z + local_z_offset
-  }
-  return targetPos
+    waitFrames(240)
+
+    local boardPosition = characterBoard.getPosition()
+    local energyToken = characterBag.takeObject({
+      position = {
+        x = boardPosition.x - 4.1,
+        y = boardPosition.y + 1,
+        z = boardPosition.z + boardBounds.size.z / 2 + -1.4,
+      }
+    })
+    energyToken.interactable = false
+    local blockToken = characterBag.takeObject({
+      position = {
+        x = boardPosition.x - 6.2,
+        y = boardPosition.y + 1,
+        z = boardPosition.z + boardBounds.size.z / 2 + -3.6,
+      }
+    })
+    blockToken.interactable = false
+    local hpToken = characterBag.takeObject({
+      position = {
+        x = boardPosition.x + 1.1,
+        y = boardPosition.y + 1,
+        z = boardPosition.z + boardBounds.size.z / 2 + -5.8,
+      }
+    })
+    hpToken.interactable = false
+
+    return 1
+  end
+
+  startLuaCoroutine(self, "setupCoroutine")
 end
 
 function setupSnapPoints()

@@ -1,7 +1,3 @@
-function createMachine()
-
-end
-
 CHARACTERS = {"Ironclad", "Silent", "Defect", "Watcher"}
 PLAYERS_DATA = {
   Red = {},
@@ -11,19 +7,36 @@ PLAYERS_DATA = {
 }
 
 OBJECTS = {
+  startMenu = "1c1c13",
+
   characterBoards = {
     [CHARACTERS[1]] = "63f2c4",
     [CHARACTERS[2]] = "9ee996",
     [CHARACTERS[3]] = "b293d2",
     [CHARACTERS[4]] = "60b3de"
   },
+
   playerHands = {
     Red = "198286",
     Green = "761a86",
     Blue = "507348",
     Pink = "32fa24"
+  },
+
+  characterBags = {
+    [CHARACTERS[1]] = "a29133",
+    [CHARACTERS[2]] = "6a89d8",
+    [CHARACTERS[3]] = "0f270c",
+    [CHARACTERS[4]] = "f37f4f"
   }
 }
+
+function waitFrames(frames) --This function can only be used inside a coroutine because it is using coroutine.yield()
+   while frames > 0 do --loop until frames = 0
+      coroutine.yield(0) --this will wait 1 frame, reguardless of the number put inside coroutine.yield(#)
+      frames = frames - 1 --decrement frames every loop
+   end
+end
 
 function onLoad()
   for index, color in ipairs({ "Red", "Green", "Blue", "Pink" }) do
@@ -44,12 +57,6 @@ function onLoad()
       z = 0
     })
   end
-end
-
-function onObjectPickUp(playerColor, pickedUpObject)
-  print(playerColor)
-  print(pickedUpObject.name)
-  print(pickedUpObject.guid)
 end
 
 function getAssignedCharacterToPlayer(arguments)
@@ -88,51 +95,97 @@ function unsignCharacterFromPlayer(arguments)
   PLAYERS_DATA[color].character = nil
 end
 
-local gameStateMachine = createMachine({
-  initial = "Idle",
-  states = {
-    Idle = {
-      on = {
-        startGame = {
-          target = "Starting"
-        }
-      }
-    },
-    Starting = {
-      initial = "SetupInProgress",
-      states = {
-        SetupInProgress = {
-          on = {
-            endSetup = {
-              target = "SetupDone"
-            }
-          }
-        },
-        SetupDone = {
-          type = "final"
-        }
-      },
-      onDone = {
-        target = "Ready"
-      }
-    },
-    Ready = {
-      type = "final"
-    }
+function setupPlayerDecks(arguments)
+  local color = arguments.color
+
+  local handZone = getObjectFromGUID(OBJECTS.playerHands[color])
+  local handZonePosition = handZone.getPosition()
+  local character = PLAYERS_DATA[color].character
+  local characterBoard = getObjectFromGUID(OBJECTS.characterBoards[character])
+  local characterBag = getObjectFromGUID(OBJECTS.characterBags[character])
+  local boardBounds = characterBoard.getBoundsNormalized()
+
+  local decksPosition = {
+    x = handZonePosition.x - boardBounds.size.x / 2 - 1.2,
+    y = handZonePosition.y,
+    z = handZonePosition.z + 16
   }
-})
+  local starterDeck = characterBag.takeObject({
+    position = decksPosition,
+    rotation = {
+      x = 0,
+      y = 180,
+      z = 180
+    }
+  })
+  starterDeck.interactable = false
+  starterDeck.shuffle()
+
+  local rewardsDeck = characterBag.takeObject({
+    position = {
+      x = decksPosition.x,
+      y = decksPosition.y,
+      z = decksPosition.z + 4
+    },
+    rotation = {
+      x = 0,
+      y = 180,
+      z = 180
+    }
+  })
+  rewardsDeck.interactable = false
+  rewardsDeck.shuffle()
+
+  local rareDeck = characterBag.takeObject({
+    position = {
+      x = decksPosition.x,
+      y = decksPosition.y,
+      z = decksPosition.z + 8
+    },
+    rotation = {
+      x = 0,
+      y = 180,
+      z = 180
+    }
+  })
+  rareDeck.interactable = false
+  rareDeck.shuffle()
+end
+
+function setupPlayers(players)
+  function setupPlayersCoroutine()
+    log(players)
+    Hands.enable = true
+    for index, color in ipairs(players) do
+      local character = PLAYERS_DATA[color].character
+      local characterBoard = getObjectFromGUID(OBJECTS.characterBoards[character])
+      characterBoard.call("setupForPlayer", {
+        color = color
+      })
+      waitFrames(500)
+      setupPlayerDecks({
+        color = color
+      })
+    end
+
+    return 1
+  end
+
+  startLuaCoroutine(self, "setupPlayersCoroutine")
+end
 
 function startGame()
   log("Starting game...")
   log(JSON.encode_pretty(PLAYERS_DATA))
-
-  local all_players = {}
+  local allPlayers = {}
   for color, data in pairs(PLAYERS_DATA) do
     if data.character != nil then
-      table.insert(all_players, color)
+      table.insert(allPlayers, color)
     end
   end
-
   log("All players:")
-  log(JSON.encode_pretty(all_players))
+  log(JSON.encode_pretty(allPlayers))
+  local startMenu = getObjectFromGUID(OBJECTS.startMenu)
+  startMenu.destruct()
+  setupPlayers(allPlayers)
 end
