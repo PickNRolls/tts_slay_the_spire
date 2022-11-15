@@ -11,6 +11,536 @@ PLAYERS_DATA = {
   Pink = {},
 }
 
+EFFECT_TYPES = {
+  GAIN_GOLD = "gain gold",
+  GAIN_CURSE = "gain curse",
+  GAIN_RANDOM_POTION = "gain random potion",
+  GAIN_CARD = "gain card",
+  GAIN_RANDOM_CARD = "gain random card",
+  GAIN_RARE_CARD = "gain rare card",
+  GAIN_RANDOM_RARE_CARD = "gain random rare card",
+  GAIN_COLORLESS_CARD = "gain colorless card",
+  GAIN_RANDOM_COLORLESS_CARD = "gain random colorless card",
+  GAIN_TREASURE = "gain treasure",
+  UPGRADE_CARD = "upgrade card",
+  UPGRADE_RANDOM_CARD = "upgrade random card",
+  TRANSFORM_CARD = "transform card",
+  LOSE_HP = "lose hp",
+  LOSE_GOLD = "lose gold",
+  REMOVE_CARD = "remove card",
+}
+
+CARDS_DATA = {
+  neowBlessing = {
+    "998a64" = {
+      {
+        effects = {
+          {
+            type = EFFECT_TYPES.GAIN_GOLD,
+            payload = {
+              amount = 4
+            }
+          }
+        }
+      },
+      {
+        effects = {
+          {
+            type = EFFECT_TYPES.REMOVE_CARD,
+          }
+        }
+      },
+      {
+        effects = {
+          {
+            type = EFFECT_TYPES.UPGRADE_RANDOM_CARD,
+            payload = {
+              amount = 2
+            }
+          },
+          {
+            type = EFFECT_TYPES.GAIN_CURSE,
+          }
+        }
+      }
+    },
+    "6eeb68" = {
+      {
+        effects = {
+          {
+            type = EFFECT_TYPES.UPGRADE_CARD,
+          }
+        }
+      },
+      {
+        effects = {
+          {
+            type = EFFECT_TYPES.GAIN_RANDOM_POTION,
+            payload = {
+              amount = 3
+            }
+          }
+        }
+      },
+      {
+        effects = {
+          {
+            type = EFFECT_TYPES.TRANSFORM_CARD,
+            payload = {
+              amount = 2
+            }
+          },
+          {
+            type = EFFECT_TYPES.GAIN_CURSE
+          }
+        }
+      }
+    },
+    "c21e95" = {
+      {
+        effects = {
+          {
+            type = EFFECT_TYPES.UPGRADE_CARD
+          }
+        }
+      },
+      {
+        effects = {
+          {
+            type = EFFECT_TYPES.GAIN_RANDOM_RARE_CARD
+          }
+        }
+      },
+      {
+        effects = {
+          {
+            type = EFFECT_TYPES.GAIN_GOLD,
+            payload = {
+              amount = 10
+            }
+          },
+          {
+            type = EFFECT_TYPES.GAIN_CURSE
+          }
+        }
+      }
+    },
+    "199138" = {
+      {
+        effects = {
+          {
+            type = EFFECT_TYPES.UPGRADE_CARD
+          }
+        }
+      },
+      {
+        effects = {
+          {
+            type = EFFECT_TYPES.GAIN_RANDOM_RARE_CARD
+          }
+        }
+      },
+      {
+        effects = {
+          {
+            type = EFFECT_TYPES.GAIN_TREASURE,
+          },
+          {
+            type = EFFECT_TYPES.LOSE_HP,
+            payload = {
+              amount = 2
+            }
+          }
+        }
+      }
+    },
+    "09c40f" = {
+      {
+        effects = {
+          {
+            type = EFFECT_TYPES.UPGRADE_CARD,
+          }
+        }
+      },
+      {
+        effects = {
+          {
+            type = EFFECT_TYPES.GAIN_COLORLESS_CARD,
+          }
+        }
+      },
+      {
+        effects = {
+          {
+            type = EFFECT_TYPES.REMOVE_CARD,
+            payload = {
+              amount = 2
+            }
+          },
+          {
+            type = EFFECT_TYPES.LOSE_HP,
+            payload = {
+              amount = 2
+            }
+          }
+        }
+      }
+    },
+    "9ce0e5" = {
+      {
+        effects = {
+          {
+            type = EFFECT_TYPES.REMOVE_CARD
+          }
+        }
+      },
+      {
+        effects = {
+          {
+            type = EFFECT_TYPES.GAIN_GOLD,
+            payload = {
+              amount = 4
+            }
+          }
+        }
+      },
+      {
+        effects = {
+          {
+            type = EFFECT_TYPES.UPGRADE_RANDOM_CARD,
+            payload = {
+              amount = 2
+            }
+          },
+          {
+            type = EFFECT_TYPES.LOSE_HP,
+            payload = {
+              amount = 2
+            }
+          }
+        }
+      }
+    },
+    "cdd020" = {
+      {
+        effects = {
+          {
+            type = EFFECT_TYPES.REMOVE_CARD
+          }
+        }
+      },
+      {
+        effects = {
+          {
+            type = EFFECT_TYPES.GAIN_GOLD,
+            payload = {
+              amount = 4
+            }
+          }
+        }
+      },
+      {
+        effects = {
+          {
+            type = EFFECT_TYPES.GAIN_RANDOM_CARD,
+            payload = {
+              amount = 2
+            }
+          },
+          {
+            type = EFFECT_TYPES.LOSE_HP,
+            payload = {
+              amount = 2
+            }
+          }
+        }
+      }
+    },
+    "c60c9d" = {
+      {
+        effects = {
+          {
+            type = EFFECT_TYPES.UPGRADE_CARD,
+          }
+        }
+      },
+      {
+        effects = {
+          {
+            type = EFFECT_TYPES.TRANSFORM_CARD
+          }
+        }
+      },
+      {
+        effects = {
+          {
+            type = EFFECT_TYPES.GAIN_GOLD,
+            payload = {
+              amount = 8
+            }
+          },
+          {
+            type = EFFECT_TYPES.LOSE_HP,
+            payload = {
+              amount = 2
+            }
+          }
+        }
+      }
+    },
+    "f66dd3" = {
+      {
+        effects = {
+          {
+            type = EFFECT_TYPES.GAIN_COLORLESS_CARD,
+          }
+        }
+      },
+      {
+        effects = {
+          {
+            type = EFFECT_TYPES.GAIN_RANDOM_POTION,
+            payload = {
+              amount = 3
+            }
+          }
+        }
+      },
+      {
+        effects = {
+          {
+            type = EFFECT_TYPES.GAIN_TREASURE
+          },
+          {
+            type = EFFECT_TYPES.LOSE_HP,
+            payload = {
+              amount = 2
+            }
+          }
+        }
+      }
+    },
+    "ad34d0" = {
+      {
+        effects = {
+          {
+            type = EFFECT_TYPES.TRANSFORM_CARD
+          }
+        }
+      },
+      {
+        effects = {
+          {
+            type = EFFECT_TYPES.GAIN_RANDOM_POTION,
+            payload = {
+              amount = 3
+            }
+          }
+        }
+      },
+      {
+        effects = {
+          {
+            type = EFFECT_TYPES.GAIN_RARE_CARD
+          },
+          {
+            type = EFFECT_TYPES.GAIN_CURSE
+          }
+        }
+      }
+    },
+    "89a376" = {
+      {
+        effects = {
+          {
+            type = EFFECT_TYPES.GAIN_RANDOM_RARE_CARD
+          }
+        }
+      },
+      {
+        effects = {
+          {
+            type = EFFECT_TYPES.GAIN_GOLD,
+            payload = {
+              amount = 4
+            }
+          }
+        }
+      },
+      {
+        effects = {
+          {
+            type = EFFECT_TYPES.REMOVE_CARD,
+            payload = {
+              amount = 2
+            }
+          },
+          {
+            type = EFFECT_TYPES.LOSE_GOLD,
+            payload = {
+              amount = 3
+            }
+          }
+        }
+      }
+    },
+    "29021f" = {
+      {
+        effects = {
+          {
+            type = EFFECT_TYPES.UPGRADE_CARD
+          }
+        }
+      },
+      {
+        effects = {
+          {
+            type = EFFECT_TYPES.REMOVE_CARD
+          }
+        }
+      },
+      {
+        effects = {
+          {
+            type = EFFECT_TYPES.GAIN_RANDOM_COLORLESS_CARD,
+            payload = {
+              amount = 2
+            }
+          },
+          {
+            type = EFFECT_TYPES.LOSE_GOLD,
+            payload = {
+              amount = 3
+            }
+          }
+        }
+      }
+    },
+    "2b8654" = {
+      {
+        effects = {
+          {
+            type = EFFECT_TYPES.GAIN_COLORLESS_CARD,
+          }
+        }
+      },
+      {
+        effects = {
+          {
+            type = EFFECT_TYPES.GAIN_GOLD,
+            payload = {
+              amount = 4
+            }
+          }
+        }
+      },
+      {
+        effects = {
+          {
+            type = EFFECT_TYPES.GAIN_RARE_CARD,
+          },
+          {
+            type = EFFECT_TYPES.LOSE_GOLD,
+            payload = {
+              amount = 3
+            }
+          }
+        }
+      }
+    },
+    "b50bdb" = {
+      {
+        effects = {
+          {
+            type = EFFECT_TYPES.GAIN_COLORLESS_CARD
+          }
+        }
+      },
+      {
+        effects = {
+          {
+            type = EFFECT_TYPES.GAIN_RANDOM_POTION,
+            payload = {
+              amount = 3
+            }
+          }
+        }
+      },
+      {
+        effects = {
+          {
+            type = EFFECT_TYPES.GAIN_TREASURE
+          },
+          {
+            type = EFFECT_TYPES.GAIN_CURSE
+          }
+        }
+      }
+    },
+    "ed4ffd" = {
+      {
+        effects = {
+          {
+            type = EFFECT_TYPES.TRANSFORM_CARD
+          }
+        }
+      },
+      {
+        effects = {
+          {
+            type = EFFECT_TYPES.REMOVE_CARD
+          }
+        }
+      },
+      {
+        effects = {
+          {
+            type = EFFECT_TYPES.UPGRADE_RANDOM_CARD,
+            payload = {
+              amount = 2
+            }
+          },
+          {
+            type = EFFECT_TYPES.LOSE_GOLD,
+            payload = {
+              amount = 3
+            }
+          }
+        }
+      }
+    },
+    "e7c18a" = {
+      {
+        effects = {
+          {
+            type = EFFECT_TYPES.GAIN_COLORLESS_CARD,
+          }
+        }
+      },
+      {
+        effects = {
+          {
+            type = EFFECT_TYPES.UPGRADE_CARD,
+          }
+        }
+      },
+      {
+        effects = {
+          {
+            type = EFFECT_TYPES.GAIN_TREASURE,
+          },
+          {
+            type = EFFECT_TYPES.LOSE_GOLD,
+            payload = {
+              amount = 3
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
 OBJECTS = {
   startMenu = "1c1c13",
 
@@ -263,6 +793,10 @@ function setupPlayerPlayZone(arguments)
   })
 end
 
+function handleNeowCardClick(_, color)
+  log(color)
+end
+
 function setupPlayers(arguments)
   local players = arguments.players
   local act = arguments.act
@@ -314,6 +848,34 @@ function setupPlayers(arguments)
         neowCard.scale(3)
       end
       neowCard.locked = true
+      waitFrames(250)
+      neowCard.createButton({
+        click_function = "handleNeowCardClick",
+        function_owner = self,
+        width = 900,
+        height = 7,
+        position = { 0.02, 2, 0.868 },
+        color = { 0, 0, 0, 0.9 },
+        scale = { 1, 1, 0.7 }
+      })
+      neowCard.createButton({
+        click_function = "handleNeowCardClick",
+        function_owner = self,
+        width = 900,
+        height = 7,
+        position = { 0.02, 2, 1.08 },
+        color = { 0, 0, 0, 0.9 },
+        scale = { 1, 1, 0.7 }
+      })
+      neowCard.createButton({
+        click_function = "handleNeowCardClick",
+        function_owner = self,
+        width = 900,
+        height = 7,
+        position = { 0.02, 2, 1.314 },
+        color = { 0, 0, 0, 0.9 },
+        scale = { 1, 1, 0.7 }
+      })
     end
 
     return 1
