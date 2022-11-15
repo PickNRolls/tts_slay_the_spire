@@ -20,19 +20,24 @@ OBJECTS = {
     [CHARACTERS[3]] = "b293d2",
     [CHARACTERS[4]] = "60b3de"
   },
+  characterBags = {
+    [CHARACTERS[1]] = "a29133",
+    [CHARACTERS[2]] = "6a89d8",
+    [CHARACTERS[3]] = "0f270c",
+    [CHARACTERS[4]] = "f37f4f"
+  },
+  characterFigures = {
+    [CHARACTERS[1]] = "b9ce26",
+    [CHARACTERS[2]] = "64b541",
+    [CHARACTERS[3]] = "5a68a5",
+    [CHARACTERS[4]] = "410585"
+  },
 
   playerHands = {
     Red = "198286",
     Green = "761a86",
     Blue = "507348",
     Pink = "32fa24"
-  },
-
-  characterBags = {
-    [CHARACTERS[1]] = "a29133",
-    [CHARACTERS[2]] = "6a89d8",
-    [CHARACTERS[3]] = "0f270c",
-    [CHARACTERS[4]] = "f37f4f"
   },
 
   boot = "d4e0e6",
@@ -168,7 +173,42 @@ function setupPlayerDecks(arguments)
   rareDeck.shuffle()
 end
 
-function setupPlayers(players)
+function getMapCharacterPositions(arguments)
+  local mapObject = arguments.mapObject
+  local bounds = mapObject.getBounds()
+  local position = mapObject.getPosition()
+  local scale = mapObject.getScale()
+
+  local positions = {}
+  local positionsDone = 0
+  while positionsDone != 4 do
+    table.insert(positions, {
+      x = position.x + bounds.size.x / 2 - 0.1 * scale.x,
+      y = position.y,
+      z = position.z - bounds.size.z / 2 + (0.2 + positionsDone * 0.435) * scale.z,
+    })
+    positionsDone = positionsDone + 1
+  end
+  return positions
+end
+
+function getMapCharacterSnapPoints(arguments)
+  local mapObject = arguments.mapObject
+  local characterPositions = getMapCharacterPositions({
+    mapObject = mapObject
+  })
+  local snapPoints = {}
+  for index, position in ipairs(characterPositions) do
+    table.insert(snapPoints, {
+      position = mapObject.positionToLocal(position)
+    })
+  end
+  return snapPoints
+end
+
+function setupPlayers(arguments)
+  local players = arguments.players
+  local act = arguments.act
   function setupPlayersCoroutine()
     log(players)
     Hands.enable = true
@@ -179,7 +219,23 @@ function setupPlayers(players)
         color = color
       })
     end
+
     waitFrames(500)
+
+    local actMap = getObjectFromGUID(OBJECTS.actMaps[act])
+    local characterPositions = getMapCharacterPositions({
+      mapObject = actMap
+    })
+    for index, color in ipairs(players) do
+      local playerFigure = getObjectFromGUID(OBJECTS.characterFigures[PLAYERS_DATA[color].character])
+      local position = characterPositions[index]
+      playerFigure.setPositionSmooth({
+        x = position.x,
+        y = position.y + 1,
+        z = position.z
+      })
+    end
+
     for index, color in ipairs(players) do
       setupPlayerDecks({
         color = color
@@ -194,21 +250,12 @@ end
 
 function setupMapCharacterSnapPoints(arguments)
   local mapObject = arguments.mapObject
-  local bounds = mapObject.getBounds()
-  local position = mapObject.getPosition()
-  local scale = mapObject.getScale()
-
+  local characterSnapPoints = getMapCharacterSnapPoints({
+    mapObject = mapObject
+  })
   local snapPoints = mapObject.getSnapPoints()
-  local characterSnapPointsDone = 0
-  while characterSnapPointsDone != 4 do
-    table.insert(snapPoints, {
-      position = mapObject.positionToLocal({
-        x = position.x + bounds.size.x / 2 - 0.1 * scale.x,
-        y = position.y,
-        z = position.z - bounds.size.z / 2 + (0.2 + characterSnapPointsDone * 0.435) * scale.z,
-      })
-    })
-    characterSnapPointsDone = characterSnapPointsDone + 1
+  for index = 1, #characterSnapPoints do
+    snapPoints[#snapPoints + 1] = characterSnapPoints[index]
   end
   mapObject.setSnapPoints(snapPoints)
 end
@@ -268,8 +315,11 @@ function startGame()
   log(JSON.encode_pretty(allPlayers))
   local startMenu = getObjectFromGUID(OBJECTS.startMenu)
   startMenu.destruct()
-  setupPlayers(allPlayers)
   setupAct({
+    act = GAME_DATA.act
+  })
+  setupPlayers({
+    players = allPlayers,
     act = GAME_DATA.act
   })
 end
