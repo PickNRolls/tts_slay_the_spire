@@ -229,9 +229,10 @@ function setupPlayers(arguments)
     for index, color in ipairs(players) do
       local playerFigure = getObjectFromGUID(OBJECTS.characterFigures[PLAYERS_DATA[color].character])
       local position = characterPositions[index]
+      playerFigure.scale(1.4)
       playerFigure.setPositionSmooth({
         x = position.x,
-        y = position.y + 1,
+        y = position.y + 1.5,
         z = position.z
       })
     end
