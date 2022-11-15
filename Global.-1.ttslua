@@ -32,7 +32,7 @@ EFFECT_TYPES = {
 
 CARDS_DATA = {
   neowBlessing = {
-    "998a64" = {
+    ["998a64"] = {
       {
         effects = {
           {
@@ -64,7 +64,7 @@ CARDS_DATA = {
         }
       }
     },
-    "6eeb68" = {
+    ["6eeb68"] = {
       {
         effects = {
           {
@@ -96,7 +96,7 @@ CARDS_DATA = {
         }
       }
     },
-    "c21e95" = {
+    ["c21e95"] = {
       {
         effects = {
           {
@@ -125,7 +125,7 @@ CARDS_DATA = {
         }
       }
     },
-    "199138" = {
+    ["199138"] = {
       {
         effects = {
           {
@@ -154,7 +154,7 @@ CARDS_DATA = {
         }
       }
     },
-    "09c40f" = {
+    ["09c40f"] = {
       {
         effects = {
           {
@@ -186,7 +186,7 @@ CARDS_DATA = {
         }
       }
     },
-    "9ce0e5" = {
+    ["9ce0e5"] = {
       {
         effects = {
           {
@@ -221,7 +221,7 @@ CARDS_DATA = {
         }
       }
     },
-    "cdd020" = {
+    ["cdd020"] = {
       {
         effects = {
           {
@@ -256,7 +256,7 @@ CARDS_DATA = {
         }
       }
     },
-    "c60c9d" = {
+    ["c60c9d"] = {
       {
         effects = {
           {
@@ -288,7 +288,7 @@ CARDS_DATA = {
         }
       }
     },
-    "f66dd3" = {
+    ["f66dd3"] = {
       {
         effects = {
           {
@@ -320,7 +320,7 @@ CARDS_DATA = {
         }
       }
     },
-    "ad34d0" = {
+    ["ad34d0"] = {
       {
         effects = {
           {
@@ -349,7 +349,7 @@ CARDS_DATA = {
         }
       }
     },
-    "89a376" = {
+    ["89a376"] = {
       {
         effects = {
           {
@@ -384,7 +384,7 @@ CARDS_DATA = {
         }
       }
     },
-    "29021f" = {
+    ["29021f"] = {
       {
         effects = {
           {
@@ -416,7 +416,7 @@ CARDS_DATA = {
         }
       }
     },
-    "2b8654" = {
+    ["2b8654"] = {
       {
         effects = {
           {
@@ -448,7 +448,7 @@ CARDS_DATA = {
         }
       }
     },
-    "b50bdb" = {
+    ["b50bdb"] = {
       {
         effects = {
           {
@@ -477,7 +477,7 @@ CARDS_DATA = {
         }
       }
     },
-    "ed4ffd" = {
+    ["ed4ffd"] = {
       {
         effects = {
           {
@@ -509,7 +509,7 @@ CARDS_DATA = {
         }
       }
     },
-    "e7c18a" = {
+    ["e7c18a"] = {
       {
         effects = {
           {
