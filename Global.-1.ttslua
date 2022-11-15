@@ -265,7 +265,7 @@ function setupPlayers(arguments)
       playerFigure.scale(1.4)
       playerFigure.setPositionSmooth({
         x = position.x,
-        y = position.y + 1.5,
+        y = position.y + 2,
         z = position.z
       })
     end
