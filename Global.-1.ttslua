@@ -1,14 +1,13 @@
 CHARACTERS = {"Ironclad", "Silent", "Defect", "Watcher"}
 
 GAME_DATA = {
-  act = 1
-}
-
-PLAYERS_DATA = {
-  Red = {},
-  Green = {},
-  Blue = {},
-  Pink = {},
+  act = 1,
+  players = {
+    Red = {},
+    Green = {},
+    Blue = {},
+    Pink = {}
+  }
 }
 
 EFFECT_TYPES = {
@@ -641,13 +640,13 @@ end
 
 function getAssignedCharacterToPlayer(arguments)
   local color = arguments.color
-  return PLAYERS_DATA[color].character
+  return GAME_DATA.players[color].character
 end
 
 function canAssignCharacterToPlayer(arguments)
   local character = arguments.character
   local color = arguments.color
-  for color, data in pairs(PLAYERS_DATA) do
+  for color, data in pairs(GAME_DATA.players) do
     if data.character != nil and data.character == character then
       return false
     end
@@ -658,21 +657,21 @@ end
 function assignCharacterToPlayer(arguments)
   local character = arguments.character
   local color = arguments.color
-  PLAYERS_DATA[color].character = character
+  GAME_DATA.players[color].character = character
 end
 
 function canUnsignCharacterFromPlayer(arguments)
   local character = arguments.character
   local color = arguments.color
 
-  return PLAYERS_DATA[color].character != nil and
-    PLAYERS_DATA[color].character == character
+  return GAME_DATA.players[color].character != nil and
+    GAME_DATA.players[color].character == character
 end
 
 function unsignCharacterFromPlayer(arguments)
   local color = arguments.color
 
-  PLAYERS_DATA[color].character = nil
+  GAME_DATA.players[color].character = nil
 end
 
 function setupPlayerDecks(arguments)
@@ -680,7 +679,7 @@ function setupPlayerDecks(arguments)
 
   local handZone = getObjectFromGUID(OBJECTS.playerHands[color])
   local handZonePosition = handZone.getPosition()
-  local character = PLAYERS_DATA[color].character
+  local character = GAME_DATA.players[color].character
   local characterBoard = getObjectFromGUID(OBJECTS.characterBoards[character])
   local characterBag = getObjectFromGUID(OBJECTS.characterBags[character])
   local boardBounds = characterBoard.getBoundsNormalized()
@@ -779,7 +778,7 @@ end
 
 function setupPlayerPlayZone(arguments)
   local color = arguments.color
-  local playerBoard = getObjectFromGUID(OBJECTS.characterBoards[PLAYERS_DATA[color].character])
+  local playerBoard = getObjectFromGUID(OBJECTS.characterBoards[GAME_DATA.players[color].character])
   local playerBoardPosition = playerBoard.getPosition()
   local playerBoardBounds = playerBoard.getBounds()
   spawnObject({
@@ -811,6 +810,11 @@ function handleNeowThirdClick(neowCard, color)
   log(JSON.encode_pretty(CARDS_DATA.neowBlessing[neowCard.guid][3]))
 end
 
+function handleEffect(arguments)
+  local effect = arguments.effect
+  local target = arguments.target
+
+end
 
 function setupPlayers(arguments)
   local players = arguments.players
@@ -818,7 +822,7 @@ function setupPlayers(arguments)
   function setupPlayersCoroutine()
     Hands.enable = true
     for index, color in ipairs(players) do
-      local character = PLAYERS_DATA[color].character
+      local character = GAME_DATA.players[color].character
       local characterBoard = getObjectFromGUID(OBJECTS.characterBoards[character])
       characterBoard.call("setupForPlayer", {
         color = color
@@ -832,7 +836,7 @@ function setupPlayers(arguments)
       mapObject = actMap
     })
     for index, color in ipairs(players) do
-      local playerFigure = getObjectFromGUID(OBJECTS.characterFigures[PLAYERS_DATA[color].character])
+      local playerFigure = getObjectFromGUID(OBJECTS.characterFigures[GAME_DATA.players[color].character])
       local position = characterPositions[index]
       playerFigure.scale(1.4)
       playerFigure.setPositionSmooth({
@@ -848,7 +852,7 @@ function setupPlayers(arguments)
       setupPlayerDecks({
         color = color
       })
-      local characterBoard = getObjectFromGUID(OBJECTS.characterBoards[PLAYERS_DATA[color].character])
+      local characterBoard = getObjectFromGUID(OBJECTS.characterBoards[GAME_DATA.players[color].character])
       local boardPosition = characterBoard.getPosition()
       local neowCard = neowBlessingDeck.takeObject({
         position = {
@@ -1025,7 +1029,7 @@ end
 function startGame()
   log("Starting game...")
   local allPlayers = {}
-  for color, data in pairs(PLAYERS_DATA) do
+  for color, data in pairs(GAME_DATA.players) do
     if data.character != nil then
       table.insert(allPlayers, color)
     end

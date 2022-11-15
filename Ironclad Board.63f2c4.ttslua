@@ -421,10 +421,10 @@ end
 function setupForPlayer(arguments)
   function setupCoroutine()
     local OBJECTS = Global.getTable("OBJECTS")
-    local PLAYERS_DATA = Global.getTable("PLAYERS_DATA")
+    local players = Global.getTable("GAME_DATA").players
     local color = arguments.color
     local handZone = getObjectFromGUID(OBJECTS.playerHands[color])
-    local character = PLAYERS_DATA[color].character
+    local character = players[color].character
     local characterBoard = getObjectFromGUID(OBJECTS.characterBoards[character])
     local characterBag = getObjectFromGUID(OBJECTS.characterBags[character])
     characterBoard.scale(1.8)
