@@ -57,7 +57,6 @@ START_RELATIVE_POSITIONS = {
 
 function startRelativePositionsToWorld(arguments)
   local positions = arguments.positions
-  log(JSON.encode_pretty(positions))
   local startPosition = Global.call("getMapStartPosition", {
     mapObject = self
   })

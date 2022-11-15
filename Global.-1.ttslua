@@ -67,7 +67,9 @@ OBJECTS = {
   },
 
   whiteMapTokensBag = "021340",
-  blackMapTokensBag = "b4d7e7"
+  blackMapTokensBag = "b4d7e7",
+
+  neowBlessingDeck = "938861"
 }
 
 function waitFrames(frames) --This function can only be used inside a coroutine because it is using coroutine.yield()
@@ -265,7 +267,6 @@ function setupPlayers(arguments)
   local players = arguments.players
   local act = arguments.act
   function setupPlayersCoroutine()
-    log(players)
     Hands.enable = true
     for index, color in ipairs(players) do
       local character = PLAYERS_DATA[color].character
@@ -292,13 +293,27 @@ function setupPlayers(arguments)
       })
     end
 
+    local neowBlessingDeck = getObjectFromGUID(OBJECTS.neowBlessingDeck)
+    neowBlessingDeck.shuffle()
     for index, color in ipairs(players) do
       setupPlayerDecks({
         color = color
       })
-      setupPlayerPlayZone({
-        color = color
+      local characterBoard = getObjectFromGUID(OBJECTS.characterBoards[PLAYERS_DATA[color].character])
+      local boardPosition = characterBoard.getPosition()
+      local neowCard = neowBlessingDeck.takeObject({
+        position = {
+          x = boardPosition.x,
+          y = boardPosition.y,
+          z = boardPosition.z + 10
+        },
+        flip = true
       })
+      local neowCardScale = neowCard.getScale().x
+      if (neowCardScale < 2) then
+        neowCard.scale(3)
+      end
+      neowCard.locked = true
     end
 
     return 1
@@ -409,15 +424,12 @@ end
 
 function startGame()
   log("Starting game...")
-  log(JSON.encode_pretty(PLAYERS_DATA))
   local allPlayers = {}
   for color, data in pairs(PLAYERS_DATA) do
     if data.character != nil then
       table.insert(allPlayers, color)
     end
   end
-  log("All players:")
-  log(JSON.encode_pretty(allPlayers))
   local startMenu = getObjectFromGUID(OBJECTS.startMenu)
   startMenu.destruct()
   setupAct({
