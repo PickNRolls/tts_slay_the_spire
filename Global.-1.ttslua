@@ -254,6 +254,9 @@ CARDS_DATA = {
             }
           }
         }
+      },
+      {
+        lastButtonBigger = true
       }
     },
     ["c60c9d"] = {
@@ -414,6 +417,9 @@ CARDS_DATA = {
             }
           }
         }
+      },
+      {
+        lastButtonBigger = true
       }
     },
     ["2b8654"] = {
@@ -793,9 +799,18 @@ function setupPlayerPlayZone(arguments)
   })
 end
 
-function handleNeowCardClick(_, color)
-  log(color)
+function handleNeowFirstClick(neowCard, color)
+  log(JSON.encode_pretty(CARDS_DATA.neowBlessing[neowCard.guid][1]))
 end
+
+function handleNeowSecondClick(neowCard, color)
+  log(JSON.encode_pretty(CARDS_DATA.neowBlessing[neowCard.guid][2]))
+end
+
+function handleNeowThirdClick(neowCard, color)
+  log(JSON.encode_pretty(CARDS_DATA.neowBlessing[neowCard.guid][3]))
+end
+
 
 function setupPlayers(arguments)
   local players = arguments.players
@@ -849,32 +864,55 @@ function setupPlayers(arguments)
       end
       neowCard.locked = true
       waitFrames(250)
+      local buttonPositions = {
+        {
+          0.02, 0.6, 0.868
+        },
+        {
+          0.02, 0.6, 1.08
+        },
+        {
+          0.02, 0.6, 1.314
+        }
+      }
+      local buttonScales = {
+        { 1, 1, 0.7 },
+        { 1, 1, 0.7 },
+        { 1, 1, 0.7 }
+      }
+      if CARDS_DATA.neowBlessing[neowCard.guid][4] != nil and
+        CARDS_DATA.neowBlessing[neowCard.guid][4].lastButtonBigger then
+          buttonPositions[1][3] = 0.786
+          buttonPositions[2][3] = 1
+          buttonPositions[3][3] = 1.28
+          buttonScales[3][3] = 1.3
+      end
       neowCard.createButton({
-        click_function = "handleNeowCardClick",
+        click_function = "handleNeowFirstClick",
         function_owner = self,
         width = 900,
         height = 7,
-        position = { 0.02, 2, 0.868 },
-        color = { 0, 0, 0, 0.9 },
-        scale = { 1, 1, 0.7 }
+        position = buttonPositions[1],
+        color = { 0, 0, 0, 0 },
+        scale = buttonScales[1]
       })
       neowCard.createButton({
-        click_function = "handleNeowCardClick",
+        click_function = "handleNeowSecondClick",
         function_owner = self,
         width = 900,
         height = 7,
-        position = { 0.02, 2, 1.08 },
-        color = { 0, 0, 0, 0.9 },
-        scale = { 1, 1, 0.7 }
+        position = buttonPositions[2],
+        color = { 0, 0, 0, 0 },
+        scale = buttonScales[2]
       })
       neowCard.createButton({
-        click_function = "handleNeowCardClick",
+        click_function = "handleNeowThirdClick",
         function_owner = self,
         width = 900,
         height = 7,
-        position = { 0.02, 2, 1.314 },
-        color = { 0, 0, 0, 0.9 },
-        scale = { 1, 1, 0.7 }
+        position = buttonPositions[3],
+        color = { 0, 0, 0, 0 },
+        scale = buttonScales[3]
       })
     end
 
