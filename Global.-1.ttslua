@@ -10,6 +10,83 @@ GAME_DATA = {
   }
 }
 
+
+OBJECTS = {
+  startMenu = "1c1c13",
+
+  characterBoards = {
+    [CHARACTERS[1]] = "63f2c4",
+    [CHARACTERS[2]] = "9ee996",
+    [CHARACTERS[3]] = "b293d2",
+    [CHARACTERS[4]] = "60b3de"
+  },
+  characterBags = {
+    [CHARACTERS[1]] = "a29133",
+    [CHARACTERS[2]] = "6a89d8",
+    [CHARACTERS[3]] = "0f270c",
+    [CHARACTERS[4]] = "f37f4f"
+  },
+  characterFigures = {
+    [CHARACTERS[1]] = "b9ce26",
+    [CHARACTERS[2]] = "64b541",
+    [CHARACTERS[3]] = "5a68a5",
+    [CHARACTERS[4]] = "410585"
+  },
+
+  playerHands = {
+    Red = "198286",
+    Green = "761a86",
+    Blue = "507348",
+    Pink = "32fa24"
+  },
+
+  playerGoldBowls = {
+    Red = nil,
+    Green = nil,
+    Blue = nil,
+    Pink = nil,
+  },
+  playerGoldBowlScriptingZones = {
+    Red = nil,
+    Green = nil,
+    Blue = nil,
+    Pink = nil
+  },
+
+  boot = "d4e0e6",
+  goldBag1 = "3c7af8",
+  goldBag5 = "4aeac9",
+
+  actMaps = {
+    "0b5712",
+    "9a9d69",
+    "7ed624"
+  },
+  actDecksBag = {
+    {
+      base = "7def40",
+      ascension = "e4892b"
+    },
+    {
+      base = "bc0921",
+      ascension = "a9f893"
+    },
+    {
+      base = "4d2c55",
+      ascension = "1efef1"
+    },
+    {
+      base = "c9e668",
+      ascension = "ab1455"
+    }
+  },
+
+  whiteMapTokensBag = "021340",
+  blackMapTokensBag = "b4d7e7",
+
+  neowBlessingDeck = "938861"
+}
+
 EFFECT_TYPES = {
   GAIN_GOLD = "gain gold",
   GAIN_CURSE = "gain curse",
@@ -27,6 +104,9 @@ EFFECT_TYPES = {
   LOSE_HP = "lose hp",
   LOSE_GOLD = "lose gold",
   REMOVE_CARD = "remove card",
+}
+TARGET_TYPES = {
+  PLAYER = "Player"
 }
 
 CARDS_DATA = {
@@ -546,72 +626,80 @@ CARDS_DATA = {
   }
 }
 
-OBJECTS = {
-  startMenu = "1c1c13",
-
-  characterBoards = {
-    [CHARACTERS[1]] = "63f2c4",
-    [CHARACTERS[2]] = "9ee996",
-    [CHARACTERS[3]] = "b293d2",
-    [CHARACTERS[4]] = "60b3de"
-  },
-  characterBags = {
-    [CHARACTERS[1]] = "a29133",
-    [CHARACTERS[2]] = "6a89d8",
-    [CHARACTERS[3]] = "0f270c",
-    [CHARACTERS[4]] = "f37f4f"
-  },
-  characterFigures = {
-    [CHARACTERS[1]] = "b9ce26",
-    [CHARACTERS[2]] = "64b541",
-    [CHARACTERS[3]] = "5a68a5",
-    [CHARACTERS[4]] = "410585"
-  },
-
-  playerHands = {
-    Red = "198286",
-    Green = "761a86",
-    Blue = "507348",
-    Pink = "32fa24"
-  },
-
-  boot = "d4e0e6",
-
-  actMaps = {
-    "0b5712",
-    "9a9d69",
-    "7ed624"
-  },
-  actDecksBag = {
-    {
-      base = "7def40",
-      ascension = "e4892b"
-    },
-    {
-      base = "bc0921",
-      ascension = "a9f893"
-    },
-    {
-      base = "4d2c55",
-      ascension = "1efef1"
-    },
-    {
-      base = "c9e668",
-      ascension = "ab1455"
-    }
-  },
-
-  whiteMapTokensBag = "021340",
-  blackMapTokensBag = "b4d7e7",
-
-  neowBlessingDeck = "938861"
-}
-
 function waitFrames(frames) --This function can only be used inside a coroutine because it is using coroutine.yield()
    while frames > 0 do --loop until frames = 0
       coroutine.yield(0) --this will wait 1 frame, reguardless of the number put inside coroutine.yield(#)
       frames = frames - 1 --decrement frames every loop
    end
+end
+
+function handleEffect(arguments)
+  function handleEffectCoroutine()
+    local effect = arguments.effect
+    local target = arguments.target
+
+    if target.type == TARGET_TYPES.PLAYER then
+      if target.payload == nil or target.payload.color == nil then
+        return 1
+      end
+
+      local color = target.payload.color
+      local amount = 1
+      if effect.payload ~= nil and effect.payload.amount ~= nil then
+        amount = effect.payload.amount
+      end
+
+      if effect.type == EFFECT_TYPES.GAIN_GOLD then
+        local goldBag1 = getObjectFromGUID(OBJECTS.goldBag1)
+        local goldBag5 = getObjectFromGUID(OBJECTS.goldBag5)
+        local remainingGold1 = #goldBag1.getObjects()
+        local remainingGold5 = #goldBag5.getObjects()
+        local remainingGoldTotal = remainingGold1 + remainingGold5 * 5
+
+        if amount >= 5 and remainingGold5 == 0 then
+          print("Out of Gold. Can't gain any more.")
+          return 1
+        end
+
+        local playerBowl = getObjectFromGUID(OBJECTS.playerGoldBowls[color])
+        local playerBowlPosition = playerBowl.getPosition()
+        local positionToTakeOut = {
+          x = playerBowlPosition.x,
+          y = playerBowlPosition.y + 3,
+          z = playerBowlPosition.z
+        }
+
+        if amount >= 5 then
+          goldBag5.takeObject({
+            position = positionToTakeOut
+          })
+          amount = amount - 5
+        end
+
+        if amount == 0 then
+          return 1
+        end
+
+        local index = 0
+        while remainingGold1 ~= 0 and amount ~= 0 do
+          goldBag1.takeObject({
+            position = {
+              x = positionToTakeOut.x,
+              y = positionToTakeOut.y + index * 0.2,
+              z = positionToTakeOut.z,
+            }
+          })
+          amount = amount - 1
+          remainingGold1 = remainingGold1 - 1
+          index = index + 1
+          waitFrames(2)
+        end
+        return 1
+      end
+    end
+  end
+
+  startLuaCoroutine(self, "handleEffectCoroutine")
 end
 
 function onLoad()
@@ -647,7 +735,7 @@ function canAssignCharacterToPlayer(arguments)
   local character = arguments.character
   local color = arguments.color
   for color, data in pairs(GAME_DATA.players) do
-    if data.character != nil and data.character == character then
+    if data.character ~= nil and data.character == character then
       return false
     end
   end
@@ -664,7 +752,7 @@ function canUnsignCharacterFromPlayer(arguments)
   local character = arguments.character
   local color = arguments.color
 
-  return GAME_DATA.players[color].character != nil and
+  return GAME_DATA.players[color].character ~= nil and
     GAME_DATA.players[color].character == character
 end
 
@@ -751,7 +839,7 @@ function getMapCharacterPositions(arguments)
 
   local positions = {}
   local positionsDone = 0
-  while positionsDone != 4 do
+  while positionsDone ~= 4 do
     table.insert(positions, {
       x = position.x + bounds.size.x / 2 - 0.1 * scale.x,
       y = position.y,
@@ -810,12 +898,6 @@ function handleNeowThirdClick(neowCard, color)
   log(JSON.encode_pretty(CARDS_DATA.neowBlessing[neowCard.guid][3]))
 end
 
-function handleEffect(arguments)
-  local effect = arguments.effect
-  local target = arguments.target
-
-end
-
 function setupPlayers(arguments)
   local players = arguments.players
   local act = arguments.act
@@ -854,6 +936,38 @@ function setupPlayers(arguments)
       })
       local characterBoard = getObjectFromGUID(OBJECTS.characterBoards[GAME_DATA.players[color].character])
       local boardPosition = characterBoard.getPosition()
+      local boardBounds = characterBoard.getBounds()
+
+      local bowl = spawnObject({
+        type = "Bowl",
+        scale = {
+          0.7, 0.7, 0.7
+        },
+        position = {
+          x = boardPosition.x + boardBounds.size.x / 2 + 1.6,
+          y = boardPosition.y,
+          z = boardPosition.z + 2
+        },
+        callback_function = function(object)
+          log("Gold bowl spawned for player("..color.."): "..object.guid..".")
+          object.locked = true
+          local bounds = object.getBounds()
+          local position = object.getPosition()
+          local zone = spawnObject({
+            type = "ScriptingTrigger",
+            scale = {
+              bounds.size.x, bounds.size.y + 5, bounds.size.z
+            },
+            position = position,
+            callback_function = function(scriptingZone)
+              log("Gold bowl scripting zone spawned for player("..color.."): "..scriptingZone.guid..".")
+            end
+          })
+          OBJECTS.playerGoldBowlScriptingZones[color] = zone.guid
+        end
+      })
+      OBJECTS.playerGoldBowls[color] = bowl.guid
+
       local neowCard = neowBlessingDeck.takeObject({
         position = {
           x = boardPosition.x,
@@ -884,7 +998,7 @@ function setupPlayers(arguments)
         { 1, 1, 0.7 },
         { 1, 1, 0.7 }
       }
-      if CARDS_DATA.neowBlessing[neowCard.guid][4] != nil and
+      if CARDS_DATA.neowBlessing[neowCard.guid][4] ~= nil and
         CARDS_DATA.neowBlessing[neowCard.guid][4].lastButtonBigger then
           buttonPositions[1][3] = 0.786
           buttonPositions[2][3] = 1
@@ -917,6 +1031,21 @@ function setupPlayers(arguments)
         position = buttonPositions[3],
         color = { 0, 0, 0, 0 },
         scale = buttonScales[3]
+      })
+
+      handleEffect({
+        effect = {
+          type = EFFECT_TYPES.GAIN_GOLD,
+          payload = {
+            amount = 3
+          }
+        },
+        target = {
+          type = TARGET_TYPES.PLAYER,
+          payload = {
+            color = color
+          }
+        }
       })
     end
 
@@ -1026,11 +1155,15 @@ function setupAct(arguments)
   startLuaCoroutine(self, "setupActCoroutine")
 end
 
+function onObjectEnterZone(zone, object)
+
+end
+
 function startGame()
   log("Starting game...")
   local allPlayers = {}
   for color, data in pairs(GAME_DATA.players) do
-    if data.character != nil then
+    if data.character ~= nil then
       table.insert(allPlayers, color)
     end
   end
