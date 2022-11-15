@@ -46,6 +46,24 @@ OBJECTS = {
     "0b5712",
     "9a9d69",
     "7ed624"
+  },
+  actDecksBag = {
+    {
+      base = "7def40",
+      ascension = "e4892b"
+    },
+    {
+      base = "bc0921",
+      ascension = "a9f893"
+    },
+    {
+      base = "4d2c55",
+      ascension = "1efef1"
+    },
+    {
+      base = "c9e668",
+      ascension = "ab1455"
+    }
   }
 }
 
@@ -173,6 +191,18 @@ function setupPlayerDecks(arguments)
   rareDeck.shuffle()
 end
 
+function getMapBossPosition(arguments)
+  local mapObject = arguments.mapObject
+  local startPosition = getMapStartPosition({
+    mapObject = mapObject
+  })
+  return {
+    x = startPosition.x + 0.25,
+    y = startPosition.y,
+    z = startPosition.z + 24
+  }
+end
+
 function getMapCharacterPositions(arguments)
   local mapObject = arguments.mapObject
   local bounds = mapObject.getBounds()
@@ -296,6 +326,24 @@ function setupAct(arguments)
     bootObject.setPositionSmooth(getMapStartPosition({
       mapObject = actMap
     }))
+
+    local actDecksBag = getObjectFromGUID(OBJECTS.actDecksBag[act].base)
+    local bossMapPosition = getMapBossPosition({
+      mapObject = actMap
+    })
+    local bossDeck = actDecksBag.takeObject({
+      position = bossMapPosition
+    })
+    bossDeck.shuffle()
+    local bossObject = bossDeck.takeObject({
+      position = {
+        x = bossMapPosition.x,
+        y = bossMapPosition.y,
+        z = bossMapPosition.z + 0.5
+      }
+    })
+    actDecksBag.putObject(bossDeck)
+    bossObject.scale(1.6)
 
     return 1
   end
