@@ -64,7 +64,10 @@ OBJECTS = {
       base = "c9e668",
       ascension = "ab1455"
     }
-  }
+  },
+
+  whiteMapTokensBag = "021340",
+  blackMapTokensBag = "b4d7e7"
 }
 
 function waitFrames(frames) --This function can only be used inside a coroutine because it is using coroutine.yield()
@@ -344,6 +347,34 @@ function setupAct(arguments)
     })
     actDecksBag.putObject(bossDeck)
     bossObject.scale(1.6)
+
+    local mapRotation = actMap.getRotation()
+    local whiteTokensBag = getObjectFromGUID(OBJECTS.whiteMapTokensBag)
+    whiteTokensBag.shuffle()
+    local startRelativePositions = actMap.getTable("START_RELATIVE_POSITIONS");
+    local whiteTokenWorldPositions = actMap.call("startRelativePositionsToWorld", {
+      positions = startRelativePositions.whiteTokens
+    })
+    local whiteTokensBag = getObjectFromGUID(OBJECTS.whiteMapTokensBag)
+    whiteTokensBag.shuffle()
+    local blackTokenWorldPositions = actMap.call("startRelativePositionsToWorld", {
+      positions = startRelativePositions.blackTokens
+    })
+    local blackTokensBag = getObjectFromGUID(OBJECTS.blackMapTokensBag)
+    blackTokensBag.shuffle()
+
+    for index, position in ipairs(whiteTokenWorldPositions) do
+      whiteTokensBag.takeObject({
+        position = position,
+        rotation = mapRotation
+      })
+    end
+    for index, position in ipairs(blackTokenWorldPositions) do
+      blackTokensBag.takeObject({
+        position = position,
+        rotation = mapRotation
+      })
+    end
 
     return 1
   end

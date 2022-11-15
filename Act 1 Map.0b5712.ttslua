@@ -1,57 +1,159 @@
-function setupSnapPoints()
-  local position = self.getPosition()
-  local bounds = self.getBounds()
-
-  local startRelativePositions = {
-    { 0, 0, 0 },
+START_RELATIVE_POSITIONS = {
+  whiteTokens = {
+    { -0.5, 0, 5.55 },
+    { 3.3, 0, 7.45 },
+    { 0.3, 0, 9.42 },
+    { -2.7, 0, 9.42 },
+    { 0.5, 0, 15.4 },
+    { 2.3, 0, 17.37 },
+    { -2.78, 0, 16.84 },
+  },
+  blackTokens = {
+    { -3.2, 0, 7.1 },
+    { 0.9, 0, 7.35 },
+    { 3.3, 0, 9.75 },
+    { 0.65, 0, 13.28 },
+    { -2.22, 0, 14.7 },
+    { 3.2, 0, 15.2 },
+    { -2.78, 0, 19.34 },
+    { 1.13, 0, 19.24 },
+  },
+  firstEncounter = { 0, 0, 0 },
+  events = {
     { -2, 0, 1.55 },
     { 0, 0, 1.7 },
     { 2.1, 0, 1.55 },
     { -2.9, 0, 3.7 },
-    { 0, 0, 3.7 },
-    { 2.9, 0, 3.2 },
     { 3.2, 0, 5.3 },
     { 1.5, 0, 5.18 },
-    { -0.5, 0, 5.55 },
+    { -1.35, 0, 12.88 },
+    { 0.43, 0, 17.4 },
+    { 2.95, 0, 19.24 },
+  },
+  encounters = {
+    { 0, 0, 3.7 },
+    { 2.9, 0, 3.2 },
     { -3, 0, 5.1 },
-    { -3.2, 0, 7.1 },
     { -1.2, 0, 7.5 },
-    { 0.9, 0, 7.35 },
-    { 3.3, 0, 7.45 },
-    { 3.3, 0, 9.75 },
-    { 0.3, 0, 9.42 },
-    { -2.7, 0, 9.42 },
+    { 2.95, 0, 13.38 },
+    { -3.02, 0, 13 },
+    { -0.98, 0, 16.87 },
+  },
+  treasures = {
     { -3.4, 0, 11.37 },
     { -0.5, 0, 11.25 },
     { 2.3, 0, 11.68 },
-    { 2.95, 0, 13.38 },
-    { 0.65, 0, 13.28 },
-    { -1.35, 0, 12.88 },
-    { -3.02, 0, 13 },
-    { -2.22, 0, 14.7 },
-    { 0.5, 0, 15.4 },
-    { 3.2, 0, 15.2 },
-    { 2.3, 0, 17.37 },
-    { 0.43, 0, 17.4 },
-    { -0.98, 0, 16.87 },
-    { -2.78, 0, 16.84 },
-    { -2.78, 0, 19.34 },
+  },
+  shops = {
     { -0.68, 0, 18.94 },
-    { 1.13, 0, 19.24 },
-    { 2.95, 0, 19.24 },
+  },
+  campfires = {
     { 2.85, 0, 21 },
     { 0.85, 0, 21 },
     { -1.03, 0, 21 },
     { -2.75, 0, 21 },
-    { 0.25, 0, 24 },
   }
+}
 
-  local localPoints = {}
+function startRelativePositionsToWorld(arguments)
+  local positions = arguments.positions
+  log(JSON.encode_pretty(positions))
   local startPosition = Global.call("getMapStartPosition", {
     mapObject = self
   })
-  for index, relativePosition in ipairs(startRelativePositions) do
-    table.insert(localPoints, {
+  local resultPositions = {}
+  for index, position in ipairs(positions) do
+    table.insert(resultPositions, {
+      x = startPosition.x + position[1],
+      y = startPosition.y + position[2],
+      z = startPosition.z + position[3]
+    })
+  end
+  return resultPositions
+end
+
+function getWhiteTokenPositions()
+  return startRelativePositionsToWorld({
+    positions = START_RELATIVE_POSITIONS.whiteTokens
+  })
+end
+
+function getBlackTokenPositions()
+  return startRelativePositionsToWorld({
+    positions = START_RELATIVE_POSITIONS.blackTokens
+  })
+end
+
+function getEventPositions()
+  return startRelativePositionsToWorld({
+    positions = START_RELATIVE_POSITIONS.events
+  })
+end
+
+function getEncounterPositions()
+  return startRelativePositionsToWorld({
+    positions = START_RELATIVE_POSITIONS.encounters
+  })
+end
+
+function getShopPositions()
+  return startRelativePositionsToWorld({
+    positions = START_RELATIVE_POSITIONS.shops
+  })
+end
+
+function getCampfirePositions()
+  return startRelativePositionsToWorld({
+    positions = START_RELATIVE_POSITIONS.campfires
+  })
+end
+
+function getTreasurePositions()
+  return startRelativePositionsToWorld({
+    positions = START_RELATIVE_POSITIONS.treasures
+  })
+end
+
+function getFirstEncounterPosition()
+  return startRelativePositionsToWorld({
+    positions = { START_RELATIVE_POSITIONS.firstEncounter }
+  })[0]
+end
+
+function setupSnapPoints()
+  local position = self.getPosition()
+  local bounds = self.getBounds()
+
+  local locationPositions = {}
+  for index, relativePosition in ipairs(START_RELATIVE_POSITIONS.treasures) do
+    table.insert(locationPositions, relativePosition)
+  end
+  for index, relativePosition in ipairs(START_RELATIVE_POSITIONS.campfires) do
+    table.insert(locationPositions, relativePosition)
+  end
+  for index, relativePosition in ipairs(START_RELATIVE_POSITIONS.shops) do
+    table.insert(locationPositions, relativePosition)
+  end
+  for index, relativePosition in ipairs(START_RELATIVE_POSITIONS.encounters) do
+    table.insert(locationPositions, relativePosition)
+  end
+  for index, relativePosition in ipairs(START_RELATIVE_POSITIONS.events) do
+    table.insert(locationPositions, relativePosition)
+  end
+  for index, relativePosition in ipairs(START_RELATIVE_POSITIONS.blackTokens) do
+    table.insert(locationPositions, relativePosition)
+  end
+  for index, relativePosition in ipairs(START_RELATIVE_POSITIONS.whiteTokens) do
+    table.insert(locationPositions, relativePosition)
+  end
+  table.insert(locationPositions, START_RELATIVE_POSITIONS.firstEncounter)
+
+  local localPositions = {}
+  local startPosition = Global.call("getMapStartPosition", {
+    mapObject = self
+  })
+  for index, relativePosition in ipairs(locationPositions) do
+    table.insert(localPositions, {
       position = self.positionToLocal({
         startPosition.x + relativePosition[1],
         startPosition.y + relativePosition[2],
@@ -60,7 +162,7 @@ function setupSnapPoints()
     })
   end
 
-  self.setSnapPoints(localPoints)
+  self.setSnapPoints(localPositions)
   Global.call("setupMapCharacterSnapPoints", {
     mapObject = self
   })
