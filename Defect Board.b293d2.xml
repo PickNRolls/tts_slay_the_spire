@@ -1,0 +1,7 @@
+<Panel id="main" active="false">
+  <Text id="playZoneBottomRightCorner" fontSize="20" width="400" height="400" offsetXY="-164 5058" rotation="0 180 180" rectAlignment="LowerCenter" color="white">L</Text>
+  <Text id="playZoneTopRightCorner" fontSize="20" width="400" height="400" offsetXY="-164 4410" rotation="180 180 180" rectAlignment="LowerCenter" color="white">L</Text>
+  <Text id="playZoneBottomLeftCorner" fontSize="20" width="400" height="400" offsetXY="158 5058" rotation="0 0 180" rectAlignment="LowerCenter" color="white">L</Text>
+  <Text id="playZoneTopLeftCorner" fontSize="20" width="400" height="400" rotation="180 0 180" offsetXY="158 4410" rectAlignment="LowerCenter" color="white">L</Text>
+  <Text textAlignment="center" color="white" rotation="0 0 180" fontSize="12" offsetXY="-8 -260">Play area</Text>
+</Panel>

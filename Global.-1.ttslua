@@ -239,6 +239,28 @@ function getMapCharacterSnapPoints(arguments)
   return snapPoints
 end
 
+function setupPlayerPlayZone(arguments)
+  local color = arguments.color
+  local playerBoard = getObjectFromGUID(OBJECTS.characterBoards[PLAYERS_DATA[color].character])
+  local playerBoardPosition = playerBoard.getPosition()
+  local playerBoardBounds = playerBoard.getBounds()
+  spawnObject({
+    type = "ScriptingTrigger",
+    position = {
+      x = playerBoardPosition.x,
+      y = playerBoardPosition.y,
+      z = playerBoardPosition.z + playerBoardBounds.size.z / 2 + 6
+    },
+    scale = { 12, 0.7, 10 },
+    callback_function = function(zone)
+      local bounds = zone.getBounds()
+      local position = zone.getPosition()
+
+      playerBoard.UI.setAttribute("main", "active", "true")
+    end
+  })
+end
+
 function setupPlayers(arguments)
   local players = arguments.players
   local act = arguments.act
@@ -272,6 +294,9 @@ function setupPlayers(arguments)
 
     for index, color in ipairs(players) do
       setupPlayerDecks({
+        color = color
+      })
+      setupPlayerPlayZone({
         color = color
       })
     end
