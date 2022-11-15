@@ -161,6 +161,11 @@ function setupSnapPoints()
       })
     })
   end
+  table.insert(localPositions, {
+    position = self.positionToLocal(Global.call("getMapBossPosition", {
+      mapObject = self
+    }))
+  })
 
   self.setSnapPoints(localPositions)
   Global.call("setupMapCharacterSnapPoints", {
