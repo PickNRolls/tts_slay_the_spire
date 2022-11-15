@@ -1,4 +1,9 @@
 CHARACTERS = {"Ironclad", "Silent", "Defect", "Watcher"}
+
+GAME_DATA = {
+  act = 1
+}
+
 PLAYERS_DATA = {
   Red = {},
   Green = {},
@@ -28,6 +33,14 @@ OBJECTS = {
     [CHARACTERS[2]] = "6a89d8",
     [CHARACTERS[3]] = "0f270c",
     [CHARACTERS[4]] = "f37f4f"
+  },
+
+  boot = "d4e0e6",
+
+  actMaps = {
+    "0b5712",
+    "9a9d69",
+    "7ed624"
   }
 }
 
@@ -57,6 +70,9 @@ function onLoad()
       z = 0
     })
   end
+
+  local boot = getObjectFromGUID(OBJECTS.boot)
+  boot.use_snap_points = true
 end
 
 function getAssignedCharacterToPlayer(arguments)
@@ -162,7 +178,9 @@ function setupPlayers(players)
       characterBoard.call("setupForPlayer", {
         color = color
       })
-      waitFrames(500)
+    end
+    waitFrames(500)
+    for index, color in ipairs(players) do
       setupPlayerDecks({
         color = color
       })
@@ -172,6 +190,69 @@ function setupPlayers(players)
   end
 
   startLuaCoroutine(self, "setupPlayersCoroutine")
+end
+
+function setupMapCharacterSnapPoints(arguments)
+  local mapObject = arguments.mapObject
+  local bounds = mapObject.getBounds()
+  local position = mapObject.getPosition()
+  local scale = mapObject.getScale()
+
+  local snapPoints = mapObject.getSnapPoints()
+  local characterSnapPointsDone = 0
+  while characterSnapPointsDone != 4 do
+    table.insert(snapPoints, {
+      position = mapObject.positionToLocal({
+        x = position.x + bounds.size.x / 2 - 0.1 * scale.x,
+        y = position.y,
+        z = position.z - bounds.size.z / 2 + (0.2 + characterSnapPointsDone * 0.435) * scale.z,
+      })
+    })
+    characterSnapPointsDone = characterSnapPointsDone + 1
+  end
+  mapObject.setSnapPoints(snapPoints)
+end
+
+function getMapStartPosition(arguments)
+  local mapObject = arguments.mapObject
+  local position = mapObject.getPosition()
+  local bounds = mapObject.getBounds()
+
+  return {
+    x = position.x - 1.3,
+    y = position.y + bounds.size.y,
+    z = position.z - bounds.size.z / 2 + 1.75
+  }
+end
+
+function setupAct(arguments)
+  function setupActCoroutine()
+    local act = arguments.act
+    local actMap = getObjectFromGUID(OBJECTS.actMaps[act])
+    local tableObject = Tables.getTableObject()
+    local tableBounds = tableObject.getBounds()
+
+    actMap.scale(1.7)
+    local actMapBounds = actMap.getBounds()
+    actMap.setPositionSmooth({
+      x = -tableBounds.size.x / 2 + actMapBounds.size.x / 2 + 18,
+      y = 2,
+      z = tableBounds.center.z + 9,
+    })
+    actMap.interactable = false
+
+    waitFrames(550)
+    actMap.locked = true
+    actMap.call("setup")
+    local bootObject = getObjectFromGUID(OBJECTS.boot)
+    bootObject.setPositionSmooth(getMapStartPosition({
+      mapObject = actMap
+    }))
+
+    return 1
+  end
+
+  startLuaCoroutine(self, "setupActCoroutine")
 end
 
 function startGame()
@@ -188,4 +269,7 @@ function startGame()
   local startMenu = getObjectFromGUID(OBJECTS.startMenu)
   startMenu.destruct()
   setupPlayers(allPlayers)
+  setupAct({
+    act = GAME_DATA.act
+  })
 end

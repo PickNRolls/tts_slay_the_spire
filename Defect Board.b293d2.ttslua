@@ -391,10 +391,10 @@ function setupForPlayer(arguments)
       x = handZonePosition.x,
       y = handZonePosition.y,
       z = handZonePosition.z + 10
-    }, false, true)
+    }, false, false)
     characterBoard.interactable = false
 
-    waitFrames(240)
+    waitFrames(500)
 
     local boardPosition = characterBoard.getPosition()
     local lightningOrbToken = characterBag.takeObject({
