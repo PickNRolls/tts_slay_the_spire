@@ -3,13 +3,20 @@ CHARACTERS = {"Ironclad", "Silent", "Defect", "Watcher"}
 GAME_DATA = {
   act = 1,
   players = {
-    Red = {},
-    Green = {},
-    Blue = {},
-    Pink = {}
+    Red = {
+      neowBonusDone = false
+    },
+    Green = {
+      neowBonusDone = false
+    },
+    Blue = {
+      neowBonusDone = false
+    },
+    Pink = {
+      neowBonusDone = false
+    }
   }
 }
-
 
 OBJECTS = {
   startMenu = "1c1c13",
@@ -32,6 +39,28 @@ OBJECTS = {
     [CHARACTERS[3]] = "5a68a5",
     [CHARACTERS[4]] = "410585"
   },
+  characterDecks = {
+    [CHARACTERS[1]] = {
+      starterDeck = nil,
+      rewardsDeck = nil,
+      rareDeck = nil,
+    },
+    [CHARACTERS[2]] = {
+      starterDeck = nil,
+      rewardsDeck = nil,
+      rareDeck = nil,
+    },
+    [CHARACTERS[3]] = {
+      starterDeck = nil,
+      rewardsDeck = nil,
+      rareDeck = nil,
+    },
+    [CHARACTERS[4]] = {
+      starterDeck = nil,
+      rewardsDeck = nil,
+      rareDeck = nil,
+    }
+  },
 
   playerHands = {
     Red = "198286",
@@ -39,7 +68,6 @@ OBJECTS = {
     Blue = "507348",
     Pink = "32fa24"
   },
-
   playerGoldBowls = {
     Red = nil,
     Green = nil,
@@ -47,6 +75,12 @@ OBJECTS = {
     Pink = nil,
   },
   playerGoldBowlScriptingZones = {
+    Red = nil,
+    Green = nil,
+    Blue = nil,
+    Pink = nil
+  },
+  playerNeowBlessingCard = {
     Red = nil,
     Green = nil,
     Blue = nil,
@@ -774,6 +808,14 @@ function handleLoseGoldEffect(arguments)
   end
 end
 
+function handleGainCardEffect(arguments)
+  local color = arguments.color
+  local character = GAME_DATA.players[color].character
+  local rewardsDeck = getObjectFromGUID(OBJECTS.characterDecks[character].rewardsDeck)
+
+
+end
+
 function handleEffect(arguments)
   function handleEffectCoroutine()
     local effect = arguments.effect
@@ -797,6 +839,11 @@ function handleEffect(arguments)
 
       if effect.type == EFFECT_TYPES.LOSE_GOLD then
         handleLoseGoldEffect({ amount = amount, color = color })
+        return 1
+      end
+
+      if effect.type == EFFECT_TYPES.GAIN_CARD then
+        handleGainCardEffect({ color = color })
         return 1
       end
     end
@@ -892,6 +939,7 @@ function setupPlayerDecks(arguments)
   })
   starterDeck.interactable = false
   starterDeck.shuffle()
+  OBJECTS.characterDecks[character].starterDeck = starterDeck.guid
 
   local rewardsDeck = characterBag.takeObject({
     position = {
@@ -907,6 +955,7 @@ function setupPlayerDecks(arguments)
   })
   rewardsDeck.interactable = false
   rewardsDeck.shuffle()
+  OBJECTS.characterDecks[character].rewardsDeck = rewardsDeck.guid
 
   local rareDeck = characterBag.takeObject({
     position = {
@@ -922,6 +971,7 @@ function setupPlayerDecks(arguments)
   })
   rareDeck.interactable = false
   rareDeck.shuffle()
+  OBJECTS.characterDecks[character].rareDeck = rareDeck.guid
 end
 
 function getMapBossPosition(arguments)
@@ -992,37 +1042,60 @@ function setupPlayerPlayZone(arguments)
 end
 
 function handleNeowEffects(effects, color)
-  for index, effect in ipairs(effects) do
-    handleEffect({
-      effect = effect,
-      target = {
-        type = TARGET_TYPES.PLAYER,
-        payload = {
-          color = color
+  function handleNeowEffectsCoroutine()
+    if GAME_DATA.players[color].neowBonusDone then
+      return 1
+    end
+    GAME_DATA.players[color].neowBonusDone = true
+    for index, effect in ipairs(effects) do
+      handleEffect({
+        effect = effect,
+        target = {
+          type = TARGET_TYPES.PLAYER,
+          payload = {
+            color = color
+          }
         }
-      }
-    })
+      })
+    end
+    local card = getObjectFromGUID(OBJECTS.playerNeowBlessingCard[color])
+    card.destruct()
+    return 1
   end
+  startLuaCoroutine(self, "handleNeowEffectsCoroutine")
+end
+
+function canPlayerClickNeowCard(neowCardGuid, color)
+  return OBJECTS.playerNeowBlessingCard[color] == neowCardGuid
 end
 
 function handleNeowFirstClick(neowCard, color)
+  if not canPlayerClickNeowCard(neowCard.guid, color) then
+    return
+  end
   local effects = CARDS_DATA.neowBlessing[neowCard.guid][1].effects
   local effectsJSON = JSON.encode_pretty(effects)
-  myLog("Player("..color..") picked 1st neow blessing option.\n"..effectsJSON)
+  myLog("Player("..color..") clicked 1st neow blessing option.\n"..effectsJSON)
   handleNeowEffects(effects, color)
 end
 
 function handleNeowSecondClick(neowCard, color)
+  if not canPlayerClickNeowCard(neowCard.guid, color) then
+    return
+  end
   local effects = CARDS_DATA.neowBlessing[neowCard.guid][2].effects
   local effectsJSON = JSON.encode_pretty(effects)
-  myLog("Player("..color..") picked 2nd neow blessing option.\n"..effectsJSON)
+  myLog("Player("..color..") clicked 2nd neow blessing option.\n"..effectsJSON)
   handleNeowEffects(effects, color)
 end
 
 function handleNeowThirdClick(neowCard, color)
+  if not canPlayerClickNeowCard(neowCard.guid, color) then
+    return
+  end
   local effects = CARDS_DATA.neowBlessing[neowCard.guid][3].effects
   local effectsJSON = JSON.encode_pretty(effects)
-  myLog("Player("..color..") picked 3rd neow blessing option.\n"..effectsJSON)
+  myLog("Player("..color..") clicked 3rd neow blessing option.\n"..effectsJSON)
   handleNeowEffects(effects, color)
 end
 
@@ -1160,6 +1233,7 @@ function setupPlayers(arguments)
         color = { 0, 0, 0, 0 },
         scale = buttonScales[3]
       })
+      OBJECTS.playerNeowBlessingCard[color] = neowCard.guid
 
       handleEffect({
         effect = {
