@@ -982,7 +982,7 @@ function getMapBossPosition(arguments)
   return {
     x = startPosition.x + 0.25,
     y = startPosition.y,
-    z = startPosition.z + 24
+    z = startPosition.z + 24.5
   }
 end
 
@@ -1035,6 +1035,7 @@ function setupPlayerPlayZone(arguments)
     callback_function = function(zone)
       local bounds = zone.getBounds()
       local position = zone.getPosition()
+      myLog("Scripting play zone spawned for player("..color.."): "..zone.guid..".")
 
       playerBoard.UI.setAttribute("main", "active", "true")
     end
@@ -1060,6 +1061,9 @@ function handleNeowEffects(effects, color)
     end
     local card = getObjectFromGUID(OBJECTS.playerNeowBlessingCard[color])
     card.destruct()
+    setupPlayerPlayZone({
+      color = color
+    })
     return 1
   end
   startLuaCoroutine(self, "handleNeowEffectsCoroutine")
@@ -1317,7 +1321,7 @@ function setupAct(arguments)
       position = {
         x = bossMapPosition.x,
         y = bossMapPosition.y,
-        z = bossMapPosition.z + 0.5
+        z = bossMapPosition.z,
       }
     })
     actDecksBag.putObject(bossDeck)
