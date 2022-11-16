@@ -2,6 +2,9 @@ CHARACTERS = {"Ironclad", "Silent", "Defect", "Watcher"}
 
 GAME_DATA = {
   act = 1,
+  combat = {
+    inProgress = false
+  },
   players = {
     Red = {
       neowBonusDone = false
@@ -114,11 +117,16 @@ OBJECTS = {
       ascension = "ab1455"
     }
   },
+  firstEncounterBag = "580dd2",
 
   whiteMapTokensBag = "021340",
   blackMapTokensBag = "b4d7e7",
 
-  neowBlessingDeck = "938861"
+  neowBlessingDeck = "938861",
+
+  combat = {
+
+  }
 }
 
 EFFECT_TYPES = {
@@ -139,11 +147,259 @@ EFFECT_TYPES = {
   LOSE_GOLD = "lose gold",
   REMOVE_CARD = "remove card",
 }
+
 TARGET_TYPES = {
   PLAYER = "Player"
 }
 
+TAG_TYPES = {
+  FIRST_ENCOUNTER = "First Encounter",
+  ENCOUNTER = "Encounter",
+  SUMMON = "Summon",
+  ELITE = "Elite",
+  BOSS = "Boss"
+}
+
+ACTION_TYPES = {
+  HIT = "Hit",
+  WEAK = "Weak",
+  DAZED = "Dazed",
+}
+
+REWARD_TYPES = {
+  POTION = "Potion",
+  CARD = "Card",
+}
+
 CARDS_DATA = {
+  acts = {
+    ["First Encounter"] = {
+      Encounter = {
+        ["Small Slime"] = {
+          rewards = {
+            REWARD_TYPES.POTION,
+            REWARD_TYPES.CARD,
+          },
+          everyTurnActions = {
+            {
+              type = ACTION_TYPES.HIT,
+              power = 2,
+            }
+          },
+          summons = {
+            {
+              from = {
+                {
+                  act = "1",
+                  name = "Acid Slime 1",
+                },
+                {
+                  act = "1",
+                  name = "Acid Slime 2",
+                },
+                {
+                  act = "1",
+                  name = "Acid Slime 3",
+                },
+                {
+                  act = "1",
+                  name = "Acid Slime 4",
+                }
+              },
+              amount = 1
+            }
+          },
+          hp = 3
+        }
+      }
+    },
+    ["1"] = {
+      Summon = {
+        ["Acid Slime 1"] = {
+          hp = 5,
+          dieActions = {
+            ["1"] = {
+              {
+                type = ACTION_TYPES.WEAK,
+              }
+            },
+            ["2"] = {
+              {
+                type = ACTION_TYPES.WEAK,
+              }
+            },
+            ["3"] = {
+              {
+                type = ACTION_TYPES.HIT,
+                power = 2
+              }
+            },
+            ["4"] = {
+              {
+                type = ACTION_TYPES.HIT,
+                power = 2
+              }
+            },
+            ["5"] = {
+              {
+                type = ACTION_TYPES.HIT,
+                power = 2
+              },
+              {
+                type = ACTION_TYPES.DAZED,
+              }
+            },
+            ["6"] = {
+              {
+                type = ACTION_TYPES.HIT,
+                power = 2
+              },
+              {
+                type = ACTION_TYPES.DAZED,
+              }
+            },
+          },
+        },
+        ["Acid Slime 2"] = {
+          hp = 5,
+          dieActions = {
+            ["1"] = {
+              {
+                type = ACTION_TYPES.WEAK,
+              }
+            },
+            ["2"] = {
+              {
+                type = ACTION_TYPES.WEAK,
+              }
+            },
+            ["3"] = {
+              {
+                type = ACTION_TYPES.HIT,
+                power = 2
+              },
+              {
+                type = ACTION_TYPES.DAZED,
+              }
+            },
+            ["4"] = {
+              {
+                type = ACTION_TYPES.HIT,
+                power = 2
+              },
+              {
+                type = ACTION_TYPES.DAZED,
+              }
+            },
+            ["5"] = {
+              {
+                type = ACTION_TYPES.HIT,
+                power = 2
+              }
+            },
+            ["6"] = {
+              {
+                type = ACTION_TYPES.HIT,
+                power = 2
+              }
+            },
+          },
+        },
+        ["Acid Slime 3"] = {
+          hp = 5,
+          dieActions = {
+            ["1"] = {
+              {
+                type = ACTION_TYPES.HIT,
+                power = 2
+              },
+              {
+                type = ACTION_TYPES.DAZED,
+              }
+            },
+            ["2"] = {
+              {
+                type = ACTION_TYPES.HIT,
+                power = 2
+              },
+              {
+                type = ACTION_TYPES.DAZED,
+              }
+            },
+            ["3"] = {
+              {
+                type = ACTION_TYPES.HIT,
+                power = 2
+              },
+            },
+            ["4"] = {
+              {
+                type = ACTION_TYPES.HIT,
+                power = 2
+              },
+            },
+            ["5"] = {
+              {
+                type = ACTION_TYPES.WEAK,
+              }
+            },
+            ["6"] = {
+              {
+                type = ACTION_TYPES.WEAK,
+              }
+            },
+          },
+        },
+        ["Acid Slime 4"] = {
+          hp = 5,
+          dieActions = {
+            ["1"] = {
+              {
+                type = ACTION_TYPES.HIT,
+                power = 2
+              }
+            },
+            ["2"] = {
+              {
+                type = ACTION_TYPES.HIT,
+                power = 2
+              }
+            },
+            ["3"] = {
+              {
+                type = ACTION_TYPES.WEAK,
+              }
+            },
+            ["4"] = {
+              {
+                type = ACTION_TYPES.WEAK,
+              }
+            },
+            ["5"] = {
+              {
+                type = ACTION_TYPES.HIT,
+                power = 2
+              },
+              {
+                type = ACTION_TYPES.DAZED,
+              }
+            },
+            ["6"] = {
+              {
+                type = ACTION_TYPES.HIT,
+                power = 2
+              },
+              {
+                type = ACTION_TYPES.DAZED,
+              }
+            },
+          },
+        },
+      }
+    },
+    ["2"] = {},
+    ["3"] = {}
+  },
   neowBlessing = {
     ["998a64"] = {
       {
@@ -672,6 +928,16 @@ function myLog(text)
   log("---------------------------")
 end
 
+function getPlayingColors()
+  local colors = {}
+  for color, data in pairs(GAME_DATA.players) do
+    if data.character ~= nil then
+      table.insert(colors, color)
+    end
+  end
+  return colors
+end
+
 function getPositionForGoldGain(arguments)
   local bowl = arguments.bowl
   local bowlBounds = bowl.getBounds()
@@ -683,6 +949,19 @@ function getPositionForGoldGain(arguments)
     z = playerBowlPosition.z,
   }
   return position
+end
+
+function getPositionForMap(arguments)
+  local map = arguments.map
+  local mapBounds = map.getBounds()
+  local tableObject = Tables.getTableObject()
+  local tableBounds = tableObject.getBounds()
+
+  return {
+    x = -tableBounds.size.x / 2 + mapBounds.size.x / 2 + 25,
+    y = 2,
+    z = tableBounds.center.z + 9,
+  }
 end
 
 function handleGainGoldEffect(arguments)
@@ -1042,6 +1321,89 @@ function setupPlayerPlayZone(arguments)
   })
 end
 
+function handleCombatCardClick()
+
+end
+
+function onObjectPickUp(color, object)
+  if not GAME_DATA.combat.inProgress then
+    return
+  end
+
+  local tags = object.getTags()
+  local isCombatClick = false
+  for index, tag in ipairs(tags) do
+    if tag == TAG_TYPES.FIRST_ENCOUNTER or
+      tag == TAG_TYPES.ENCOUNTER or
+      tag == TAG_TYPES.SUMMON or
+      tag == TAG_TYPES.BOSS then
+        isCombatClick = true
+        break
+      end
+  end
+
+  local isCharacterBoard = object.name == "Custom_Tile" and
+    (object.getName() == "Silent Board" or
+    object.getName() == "Ironclad Board" or
+    object.getName() == "Defect Board" or
+    object.getName() == "Watcher Board")
+
+  if isCombatClick or isCharacterBoard then
+    object.drop()
+  end
+end
+
+function setupEncounter(arguments)
+  local bag = arguments.bag
+  local map = arguments.map
+  local mapPosition = map.getPosition()
+  local mapBounds = map.getBounds()
+
+  bag.takeObject({
+    index = 0,
+    rotation = {
+      x = 0,
+      y = 180,
+      z = 180
+    },
+    position = {
+      x = mapPosition.x + mapBounds.size.x / 2 + 2,
+      y = mapPosition.y + mapBounds.size.y,
+      z = mapPosition.z + mapBounds.size.z / 2 - 1.4
+    },
+    callback_function = function(deck)
+      deck.shuffle()
+      local characterPositions = getMapCharacterPositions({
+        mapObject = map
+      })
+      local playingColors = getPlayingColors()
+      for index, color in ipairs(playingColors) do
+        deck.takeObject({
+          flip = true,
+          position = {
+            x = characterPositions[index].x + 4,
+            y = characterPositions[index].y,
+            z = characterPositions[index].z
+          },
+          callback_function = function(card)
+            card.scale(1.7)
+          end
+        })
+      end
+      bag.putObject(deck)
+    end
+  })
+end
+
+function setupFirstEncounter()
+  myLog("Start to setup first encounter.")
+  local map = getObjectFromGUID(OBJECTS.actMaps[1])
+  setupEncounter({
+    bag = getObjectFromGUID(OBJECTS.firstEncounterBag),
+    map = map
+  })
+end
+
 function handleNeowEffects(effects, color)
   function handleNeowEffectsCoroutine()
     if GAME_DATA.players[color].neowBonusDone then
@@ -1064,6 +1426,16 @@ function handleNeowEffects(effects, color)
     setupPlayerPlayZone({
       color = color
     })
+    local playingColors = getPlayingColors()
+    local colorsDoneNeowBonus = {}
+    for index, color in ipairs(playingColors) do
+      if GAME_DATA.players[color].neowBonusDone then
+        table.insert(colorsDoneNeowBonus, color)
+      end
+    end
+    if #playingColors == #colorsDoneNeowBonus then
+      setupFirstEncounter()
+    end
     return 1
   end
   startLuaCoroutine(self, "handleNeowEffectsCoroutine")
@@ -1294,11 +1666,9 @@ function setupAct(arguments)
 
     actMap.scale(1.7)
     local actMapBounds = actMap.getBounds()
-    actMap.setPositionSmooth({
-      x = -tableBounds.size.x / 2 + actMapBounds.size.x / 2 + 18,
-      y = 2,
-      z = tableBounds.center.z + 9,
-    })
+    actMap.setPositionSmooth(getPositionForMap({
+      map = actMap
+    }))
     actMap.interactable = false
 
     waitFrames(550)

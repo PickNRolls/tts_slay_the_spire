@@ -435,7 +435,6 @@ function setupForPlayer(arguments)
       y = handZonePosition.y,
       z = handZonePosition.z + 10
     }, false, false)
-    characterBoard.interactable = false
 
     waitFrames(500)
 
@@ -469,6 +468,12 @@ function setupForPlayer(arguments)
       }
     })
     hpToken.interactable = false
+
+    waitFrames(450)
+
+    hpToken.locked = true
+    blockToken.locked = true
+    energyToken.locked = true
 
     return 1
   end
