@@ -651,6 +651,129 @@ function getPositionForGoldGain(arguments)
   return position
 end
 
+function handleGainGoldEffect(arguments)
+  local amount = arguments.amount
+  local color = arguments.color
+
+  local goldBag1 = getObjectFromGUID(OBJECTS.goldBag1)
+  local goldBag5 = getObjectFromGUID(OBJECTS.goldBag5)
+  local remainingGold1 = #goldBag1.getObjects()
+  local remainingGold5 = #goldBag5.getObjects()
+  local remainingGoldTotal = remainingGold1 + remainingGold5 * 5
+
+  local playerBowl = getObjectFromGUID(OBJECTS.playerGoldBowls[color])
+
+  local index = 0
+  if amount >= 5 and remainingGold5 == 0 then
+    if remainingGold1 ~= 0 then
+      while remainingGold1 ~= 0 and amount ~= 0 do
+        goldBag1.takeObject({
+          position = getPositionForGoldGain({
+            bowl = playerBowl,
+            index = index
+          })
+        })
+        amount = amount - 1
+        remainingGold1 = remainingGold1 - 1
+        index = index + 1
+        waitFrames(2)
+      end
+      return
+    end
+    print("Out of Gold. Can't gain any more.")
+    return
+  end
+
+  while amount >= 5 and remainingGold5 ~= 0 do
+    goldBag5.takeObject({
+      position = getPositionForGoldGain({
+        bowl = playerBowl,
+        index = index
+      })
+    })
+    amount = amount - 5
+    remainingGold5 = remainingGold5 - 1
+    index = index + 1
+  end
+
+  if amount == 0 then
+    return
+  end
+
+  while remainingGold1 ~= 0 and amount ~= 0 do
+    goldBag1.takeObject({
+      position = getPositionForGoldGain({
+        bowl = playerBowl,
+        index = index
+      })
+    })
+    amount = amount - 1
+    remainingGold1 = remainingGold1 - 1
+    index = index + 1
+    waitFrames(2)
+  end
+
+  if amount ~= 0 then
+    print("Out of Gold. Can't gain any more.")
+  end
+end
+
+function calculatePlayerGold(arguments)
+  local color = arguments.color
+  local bowlZone = getObjectFromGUID(OBJECTS.playerGoldBowlScriptingZones[color])
+  local objects = bowlZone.getObjects()
+  local sum = 0
+  for index, object in ipairs(objects) do
+    if object.name == "Custom Token" then
+      if object.getName() == "Gold" then
+        sum = sum + 1
+      end
+      if object.getName() == "Gold 5" then
+        sum = sum + 5
+      end
+    end
+  end
+  return sum
+end
+
+function handleLoseGoldEffect(arguments)
+  local color = arguments.color
+  local amount = arguments.amount
+  local bowlZone = getObjectFromGUID(OBJECTS.playerGoldBowlScriptingZones[color])
+  local objects = bowlZone.getObjects()
+  local playerGold = calculatePlayerGold({
+    color = color
+  })
+  local gold5Bag = getObjectFromGUID(OBJECTS.goldBag5)
+  local gold1Bag = getObjectFromGUID(OBJECTS.goldBag1)
+  local gold5Coins = {}
+  local gold5CoinsLost = 0
+  local gold1Coins = {}
+  local gold1CoinsLost = 0
+
+  for index, object in ipairs(objects) do
+    if object.name == "Custom_Token" then
+      if object.getName() == "Gold" then
+        table.insert(gold1Coins, object)
+      end
+      if object.getName() == "Gold 5" then
+        table.insert(gold5Coins, object)
+      end
+    end
+  end
+
+  while amount >=5 and gold5CoinsLost ~= #gold5Coins do
+    gold5Bag.putObject(gold5Coins[gold5CoinsLost + 1])
+    amount = amount - 5
+    gold5CoinsLost = gold5CoinsLost + 1
+  end
+  while amount > 0 and gold1CoinsLost ~= #gold1Coins do
+    gold1Bag.putObject(gold1Coins[gold1CoinsLost + 1])
+    amount = amount - 1
+    gold1CoinsLost = gold1CoinsLost + 1
+  end
+end
+
 function handleEffect(arguments)
   function handleEffectCoroutine()
     local effect = arguments.effect
@@ -668,67 +791,12 @@ function handleEffect(arguments)
       end
 
       if effect.type == EFFECT_TYPES.GAIN_GOLD then
-        local goldBag1 = getObjectFromGUID(OBJECTS.goldBag1)
-        local goldBag5 = getObjectFromGUID(OBJECTS.goldBag5)
-        local remainingGold1 = #goldBag1.getObjects()
-        local remainingGold5 = #goldBag5.getObjects()
-        local remainingGoldTotal = remainingGold1 + remainingGold5 * 5
+        handleGainGoldEffect({ amount = amount, color = color })
+        return 1
+      end
 
-        local playerBowl = getObjectFromGUID(OBJECTS.playerGoldBowls[color])
-
-        local index = 0
-        if amount >= 5 and remainingGold5 == 0 then
-          if remainingGold1 ~= 0 then
-            while remainingGold1 ~= 0 and amount ~= 0 do
-              goldBag1.takeObject({
-                position = getPositionForGoldGain({
-                  bowl = playerBowl,
-                  index = index
-                })
-              })
-              amount = amount - 1
-              remainingGold1 = remainingGold1 - 1
-              index = index + 1
-              waitFrames(2)
-            end
-            return 1
-          end
-          print("Out of Gold. Can't gain any more.")
-          return 1
-        end
-
-        while amount >= 5 and remainingGold5 ~= 0 do
-          goldBag5.takeObject({
-            position = getPositionForGoldGain({
-              bowl = playerBowl,
-              index = index
-            })
-          })
-          amount = amount - 5
-          remainingGold5 = remainingGold5 - 1
-          index = index + 1
-        end
-
-        if amount == 0 then
-          return 1
-        end
-
-        while remainingGold1 ~= 0 and amount ~= 0 do
-          goldBag1.takeObject({
-            position = getPositionForGoldGain({
-              bowl = playerBowl,
-              index = index
-            })
-          })
-          amount = amount - 1
-          remainingGold1 = remainingGold1 - 1
-          index = index + 1
-          waitFrames(2)
-        end
-
-        if amount ~= 0 then
-          print("Out of Gold. Can't gain any more.")
-        end
+      if effect.type == EFFECT_TYPES.LOSE_GOLD then
+        handleLoseGoldEffect({ amount = amount, color = color })
         return 1
       end
     end
