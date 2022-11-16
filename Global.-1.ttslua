@@ -633,6 +633,19 @@ function waitFrames(frames) --This function can only be used inside a coroutine 
    end
 end
 
+function getPositionForGoldGain(arguments)
+  local bowl = arguments.bowl
+  local bowlBounds = bowl.getBounds()
+  local playerBowlPosition = bowl.getPosition()
+  local index = arguments.index or 0
+  local position = {
+    x = playerBowlPosition.x,
+    y = playerBowlPosition.y + 3 + index * 0.3,
+    z = playerBowlPosition.z,
+  }
+  return position
+end
+
 function handleEffect(arguments)
   function handleEffectCoroutine()
     local effect = arguments.effect
@@ -656,22 +669,34 @@ function handleEffect(arguments)
         local remainingGold5 = #goldBag5.getObjects()
         local remainingGoldTotal = remainingGold1 + remainingGold5 * 5
 
+        local playerBowl = getObjectFromGUID(OBJECTS.playerGoldBowls[color])
+
         if amount >= 5 and remainingGold5 == 0 then
+          if remainingGold1 ~= 0 then
+            local index = 0
+            while remainingGold1 ~= 0 and amount ~= 0 do
+              goldBag1.takeObject({
+                position = getPositionForGoldGain({
+                  bowl = playerBowl,
+                  index = index
+                })
+              })
+              amount = amount - 1
+              remainingGold1 = remainingGold1 - 1
+              index = index + 1
+              waitFrames(2)
+            end
+            return 1
+          end
           print("Out of Gold. Can't gain any more.")
           return 1
         end
 
-        local playerBowl = getObjectFromGUID(OBJECTS.playerGoldBowls[color])
-        local playerBowlPosition = playerBowl.getPosition()
-        local positionToTakeOut = {
-          x = playerBowlPosition.x,
-          y = playerBowlPosition.y + 3,
-          z = playerBowlPosition.z
-        }
-
         if amount >= 5 then
           goldBag5.takeObject({
-            position = positionToTakeOut
+            position = getPositionForGoldGain({
+              bowl = playerBowl
+            })
           })
           amount = amount - 5
         end
@@ -683,11 +708,10 @@ function handleEffect(arguments)
         local index = 0
         while remainingGold1 ~= 0 and amount ~= 0 do
           goldBag1.takeObject({
-            position = {
-              x = positionToTakeOut.x,
-              y = positionToTakeOut.y + index * 0.2,
-              z = positionToTakeOut.z,
-            }
+            position = getPositionForGoldGain({
+              bowl = playerBowl,
+              index = index
+            })
           })
           amount = amount - 1
           remainingGold1 = remainingGold1 - 1
