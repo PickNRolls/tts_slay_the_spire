@@ -2,6 +2,7 @@ CHARACTERS = {"Ironclad", "Silent", "Defect", "Watcher"}
 
 GAME_DATA = {
   act = 1,
+  isFirstEncounterDone = false,
   combat = {
     inProgress = false
   },
@@ -125,7 +126,8 @@ OBJECTS = {
   neowBlessingDeck = "938861",
 
   combat = {
-
+    zoneToEnemy = {},
+    enemyToZone = {}
   }
 }
 
@@ -176,6 +178,7 @@ CARDS_DATA = {
     ["First Encounter"] = {
       Encounter = {
         ["Small Slime"] = {
+          name = "Small Slime",
           rewards = {
             REWARD_TYPES.POTION,
             REWARD_TYPES.CARD,
@@ -188,28 +191,119 @@ CARDS_DATA = {
           },
           summons = {
             {
-              from = {
-                {
-                  act = "1",
-                  name = "Acid Slime 1",
-                },
-                {
-                  act = "1",
-                  name = "Acid Slime 2",
-                },
-                {
-                  act = "1",
-                  name = "Acid Slime 3",
-                },
-                {
-                  act = "1",
-                  name = "Acid Slime 4",
-                }
+              variants = {
+                "Acid Slime 1",
+                "Acid Slime 2",
+                "Acid Slime 3",
+                "Acid Slime 4"
               },
               amount = 1
             }
           },
           hp = 3
+        },
+        ["Cultist"] = {
+          name = "Cultist",
+          hp = 9,
+          everyTurnActions = { {
+            type = "Hit",
+            power = 1
+          }, {
+            type = "Buff"
+          } },
+          rewards = { {
+            type = "Gold",
+            amount = 1
+          }, {
+            type = "Card"
+          } }
+        },
+        ["Jaw Worm"] = {
+          name = "Jaw Worm",
+          hp = 8,
+          dieActions = {
+            ["1"] = { {
+              type = "Block",
+              power = 2
+            }, {
+              type = "Buff"
+            } },
+            ["2"] = { {
+              type = "Block",
+              power = 2
+            }, {
+              type = "Buff"
+            } },
+            ["3"] = { {
+              type = "Hit",
+              power = 2
+            }, {
+              type = "Block",
+              power = 1
+            } },
+            ["4"] = { {
+              type = "Hit",
+              power = 2
+            }, {
+              type = "Block",
+              power = 1
+            } },
+            ["5"] = { {
+              type = "Hit",
+              power = 3
+            } },
+            ["6"] = { {
+              type = "Hit",
+              power = 3
+            } }
+          },
+          rewards = { {
+            type = "Gold",
+            amount = 1
+          }, {
+            type = "Potion"
+          }, {
+            type = "Card"
+          } }
+        },
+        ["Red Louse"] = {
+          name = "Red Louse",
+          hp = 3,
+          dieActions = {
+            ["1"] = { {
+              type = "Buff"
+            } },
+            ["2"] = { {
+              type = "Buff"
+            } },
+            ["3"] = { {
+              type = "Hit",
+              power = 2
+            } },
+            ["4"] = { {
+              type = "Hit",
+              power = 2
+            } },
+            ["5"] = { {
+              type = "Hit",
+              power = 1
+            } },
+            ["6"] = { {
+              type = "Hit",
+              power = 1
+            } }
+          },
+          abilities = { "Curl Up" },
+          summons = { {
+            variants = { "Green Louse 1", "Green Louse 2" },
+            amount = 1
+          } },
+          rewards = { {
+            type = "Gold",
+            amount = 1
+          }, {
+            type = "Card"
+          } }
         }
       }
     },
@@ -928,6 +1022,17 @@ function myLog(text)
   log("---------------------------")
 end
 
+function getEnemyStats(arguments)
+  local tag = arguments.tag
+  local name = arguments.name
+  local act = arguments.act
+  if not GAME_DATA.isFirstEncounterDone and act == 1 then
+    act = "First Encounter"
+  end
+
+  return CARDS_DATA.acts[act][tag][name]
+end
+
 function getPlayingColors()
   local colors = {}
   for color, data in pairs(GAME_DATA.players) do
@@ -1356,8 +1461,11 @@ end
 function setupEncounter(arguments)
   local bag = arguments.bag
   local map = arguments.map
+  local act = arguments.act
   local mapPosition = map.getPosition()
   local mapBounds = map.getBounds()
+
+  GAME_DATA.combat.inProgress = true
 
   bag.takeObject({
     index = 0,
@@ -1387,6 +1495,35 @@ function setupEncounter(arguments)
           },
           callback_function = function(card)
             card.scale(1.7)
+            card.interactable = false
+            local cardName = card.getName()
+            local cardBounds = card.getBounds()
+            local cardTag = card.getTags()[1]
+            local cardStats = getEnemyStats({
+              act = act,
+              tag = cardTag,
+              name = cardName
+            })
+            myLog("Card in combat: "..cardName..".")
+
+            spawnObject({
+              type = "ScriptingTrigger",
+              position = {
+                x = characterPositions[index].x + 4,
+                y = characterPositions[index].y,
+                z = characterPositions[index].z
+              },
+              scale = {
+                x = cardBounds.size.x,
+                y = cardBounds.size.y + 0.3,
+                z = cardBounds.size.z,
+              },
+              callback_function = function(zone)
+                myLog("Spawned scripting zone for card: "..zone.guid..".")
+                OBJECTS.combat.zoneToEnemy[zone.guid] = card.guid
+                OBJECTS.combat.enemyToZone[card.guid] = zone.guid
+              end
+            })
           end
         })
       end
@@ -1400,8 +1537,17 @@ function setupFirstEncounter()
   local map = getObjectFromGUID(OBJECTS.actMaps[1])
   setupEncounter({
     bag = getObjectFromGUID(OBJECTS.firstEncounterBag),
-    map = map
+    map = map,
+    act = "First Encounter"
   })
+end
+
+function startFirstEncounter()
+  setupFirstEncounter()
+end
+
+function startEncounter()
+
 end
 
 function handleNeowEffects(effects, color)
@@ -1434,7 +1580,7 @@ function handleNeowEffects(effects, color)
       end
     end
     if #playingColors == #colorsDoneNeowBonus then
-      setupFirstEncounter()
+      startFirstEncounter()
     end
     return 1
   end
@@ -1684,6 +1830,7 @@ function setupAct(arguments)
       mapObject = actMap
     })
     local bossDeck = actDecksBag.takeObject({
+      index = 0,
       position = bossMapPosition
     })
     bossDeck.shuffle()
@@ -1732,7 +1879,19 @@ function setupAct(arguments)
 end
 
 function onObjectEnterZone(zone, object)
-
+  local isCombat = GAME_DATA.combat.inProgress
+  if isCombat then
+    local enemyGuid = OBJECTS.combat.zoneToEnemy[zone.guid]
+    if enemyGuid ~= nil then
+      local enemy = getObjectFromGUID(enemyGuid)
+      local stats = getEnemyStats({
+        act = GAME_DATA.act,
+        tag = enemy.getTags()[1],
+        name = enemy.getName()
+      })
+      myLog("Object enter into "..enemy.getName()..".")
+    end
+  end
 end
 
 function startGame()
