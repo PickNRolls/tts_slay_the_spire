@@ -6,7 +6,8 @@ GAME_DATA = {
   combat = {
     inProgress = false,
     encountersSetup = 0,
-    summonQueue = {}
+    summonQueue = {},
+    enemies = {}
   },
   players = {
     Red = {
@@ -2059,6 +2060,32 @@ function prepareEnemyAfterSpawn(arguments)
   })
 end
 
+function afterEnemySpawns(arguments)
+  local cardGuid = arguments.cardGuid
+  local row = arguments.row
+  local index = arguments.index
+  prepareEnemyAfterSpawn({
+    cardGuid = cardGuid
+  })
+  local act = GAME_DATA.act
+  local card = getObjectFromGUID(cardGuid)
+  local name = card.getName()
+  local stats = getEnemyStats({
+    act = act,
+    name = name,
+    tag = card.getTags()[1]
+  })
+  GAME_DATA.combat.enemies[cardGuid] = {
+    guid = cardGuid,
+    name = name,
+    row = row,
+    index = index,
+    hp = stats.hp,
+    effects = {}
+  }
+  myLog("Insert enemy data.\n"..JSON.encode_pretty(GAME_DATA.combat.enemies[cardGuid]))
+end
+
 function handleSummon(arguments)
   myLog("Start summoning all summons.")
   local act = GAME_DATA.act
@@ -2083,7 +2110,10 @@ function handleSummon(arguments)
         table.insert(nameGuidMap[card.name], card.guid)
       end
 
-      for index, guid in ipairs(summonQueue) do
+      for index, data in ipairs(summonQueue) do
+        local guid = data.cardGuid
+        local ownerIndex = data.index
+        local ownerRow = data.row
         local card = getObjectFromGUID(guid)
         local cardPosition = card.getPosition()
         local cardName = card.getName()
@@ -2093,7 +2123,7 @@ function handleSummon(arguments)
           name = cardName
         })
         local summons = cardStats.summons
-        for _, summon in ipairs(summons) do
+        for index, summon in ipairs(summons) do
           local summoned = 0
           local variants = ishallowCopy(summon.variants)
           while summoned ~= summon.amount do
@@ -2115,8 +2145,10 @@ function handleSummon(arguments)
                 z = 180
               },
               callback_function = function(card)
-                prepareEnemyAfterSpawn({
-                  cardGuid = card.guid
+                afterEnemySpawns({
+                  cardGuid = card.guid,
+                  row = ownerRow,
+                  index = ownerIndex + index - 1 + summoned
                 })
               end
             })
@@ -2124,15 +2156,22 @@ function handleSummon(arguments)
           end
         end
       end
+
+      GAME_DATA.combat.summonQueue = {}
     end
   })
 end
 
 function queueSummonFor(arguments)
-  local act = arguments.act
   local cardGuid = arguments.cardGuid
+  local row = arguments.row
+  local index = arguments.index
   myLog("Queue summon for: "..cardGuid..".")
-  table.insert(GAME_DATA.combat.summonQueue, cardGuid)
+  table.insert(GAME_DATA.combat.summonQueue, {
+    cardGuid = cardGuid,
+    row = row,
+    index = index
+  })
 end
 
 function setupEncounter(arguments)
@@ -2184,12 +2223,16 @@ function setupEncounter(arguments)
             if cardStats.summons ~= nil and #cardStats.summons > 0 then
               queueSummonFor({
                 act = act,
-                cardGuid = card.guid
+                cardGuid = card.guid,
+                row = index,
+                index = 1
               })
             end
 
-            prepareEnemyAfterSpawn({
-              cardGuid = card.guid
+            afterEnemySpawns({
+              cardGuid = card.guid,
+              row = index,
+              index = 1,
             })
 
             if GAME_DATA.combat.encountersSetup == #getPlayingColors() then
