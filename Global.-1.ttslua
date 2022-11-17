@@ -221,7 +221,7 @@ CARD_TYPES = {
   STATUS_GREEN = "Status green"
 }
 
-CARDS_DATA = {
+ENEMIES_DATA = {
   acts = {
     ["First Encounter"] = {
       Encounter = {
@@ -1138,8 +1138,10 @@ CARDS_DATA = {
     },
     ["2"] = {},
     ["3"] = {}
-  },
-  neowBlessing = {
+  }
+}
+
+local NEOW_BLESSING_DATA = {
     ["998a64"] = {
       {
         effects = {
@@ -1652,7 +1654,6 @@ CARDS_DATA = {
         }
       }
     }
-  }
 }
 
 function waitFrames(frames) --This function can only be used inside a coroutine because it is using coroutine.yield()
@@ -1675,7 +1676,7 @@ function getEnemyStats(arguments)
     act = "First Encounter"
   end
 
-  return CARDS_DATA.acts[tostring(act)][tag][name]
+  return ENEMIES_DATA.acts[tostring(act)][tag][name]
 end
 
 function getPlayingColors()
@@ -2491,7 +2492,7 @@ function handleNeowFirstClick(neowCard, color)
   if not canPlayerClickNeowCard(neowCard.guid, color) then
     return
   end
-  local effects = CARDS_DATA.neowBlessing[neowCard.guid][1].effects
+  local effects = NEOW_BLESSING_DATA[neowCard.guid][1].effects
   local effectsJSON = JSON.encode_pretty(effects)
   myLog("Player("..color..") clicked 1st neow blessing option.\n"..effectsJSON)
   handleNeowEffects(effects, color)
@@ -2501,7 +2502,7 @@ function handleNeowSecondClick(neowCard, color)
   if not canPlayerClickNeowCard(neowCard.guid, color) then
     return
   end
-  local effects = CARDS_DATA.neowBlessing[neowCard.guid][2].effects
+  local effects = NEOW_BLESSING_DATA[neowCard.guid][2].effects
   local effectsJSON = JSON.encode_pretty(effects)
   myLog("Player("..color..") clicked 2nd neow blessing option.\n"..effectsJSON)
   handleNeowEffects(effects, color)
@@ -2511,7 +2512,7 @@ function handleNeowThirdClick(neowCard, color)
   if not canPlayerClickNeowCard(neowCard.guid, color) then
     return
   end
-  local effects = CARDS_DATA.neowBlessing[neowCard.guid][3].effects
+  local effects = NEOW_BLESSING_DATA[neowCard.guid][3].effects
   local effectsJSON = JSON.encode_pretty(effects)
   myLog("Player("..color..") clicked 3rd neow blessing option.\n"..effectsJSON)
   handleNeowEffects(effects, color)
@@ -2617,8 +2618,8 @@ function setupPlayers(arguments)
         { 1, 1, 0.7 },
         { 1, 1, 0.7 }
       }
-      if CARDS_DATA.neowBlessing[neowCard.guid][4] ~= nil and
-        CARDS_DATA.neowBlessing[neowCard.guid][4].lastButtonBigger then
+      if NEOW_BLESSING_DATA[neowCard.guid][4] ~= nil and
+        NEOW_BLESSING_DATA[neowCard.guid][4].lastButtonBigger then
           buttonPositions[1][3] = 0.786
           buttonPositions[2][3] = 1
           buttonPositions[3][3] = 1.28
