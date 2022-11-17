@@ -7,22 +7,45 @@ GAME_DATA = {
     inProgress = false,
     encountersSetup = 0,
     summonQueue = {},
+    turn = true,
     enemies = {},
     reducedCards = {}
   },
   players = {
     Red = {
-      neowBonusDone = false
+      neowBonusDone = false,
+      energy = 3,
+      block = 0
     },
     Green = {
-      neowBonusDone = false
+      neowBonusDone = false,
+      energy = 3,
+      block = 0
     },
     Blue = {
-      neowBonusDone = false
+      neowBonusDone = false,
+      energy = 3,
+      block = 0
     },
     Pink = {
-      neowBonusDone = false
+      neowBonusDone = false,
+      energy = 3,
+      block = 0
     }
+  },
+  characters = {
+    [CHARACTERS[1]] = {
+      MAX_HP = 10
+    },
+    [CHARACTERS[2]] = {
+      MAX_HP = 9
+    },
+    [CHARACTERS[3]] = {
+      MAX_HP = 9
+    },
+    [CHARACTERS[4]] = {
+      MAX_HP = 9
+    },
   }
 }
 
@@ -89,6 +112,18 @@ OBJECTS = {
     Pink = nil
   },
   playerNeowBlessingCard = {
+    Red = nil,
+    Green = nil,
+    Blue = nil,
+    Pink = nil
+  },
+  playerBoardScriptingZones = {
+    Red = nil,
+    Green = nil,
+    Blue = nil,
+    Pink = nil
+  },
+  playerDrawScriptingZones = {
     Red = nil,
     Green = nil,
     Blue = nil,
@@ -175,6 +210,15 @@ ACTION_TYPES = {
 REWARD_TYPES = {
   POTION = "Potion",
   CARD = "Card",
+}
+
+CARD_TYPES = {
+  ATTACK = "Attack",
+  SKILL = "Skill",
+  POWER = "Power",
+  CURSE = "Curse",
+  STATUS_RED = "Status red",
+  STATUS_GREEN = "Status green"
 }
 
 CARDS_DATA = {
@@ -1899,6 +1943,45 @@ function unsignCharacterFromPlayer(arguments)
   GAME_DATA.players[color].character = nil
 end
 
+function getDecksPosition(arguments)
+  local color = arguments.color
+  local handZone = getObjectFromGUID(OBJECTS.playerHands[color])
+  local handZonePosition = handZone.getPosition()
+  local character = GAME_DATA.players[color].character
+  local characterBoard = getObjectFromGUID(OBJECTS.characterBoards[character])
+  local boardBounds = characterBoard.getBoundsNormalized()
+
+  return {
+    x = handZonePosition.x - boardBounds.size.x / 2 - 1.2,
+    y = handZonePosition.y,
+    z = handZonePosition.z + 16
+  }
+end
+
+function getDrawDeckPosition(arguments)
+  local decksPosition = getDecksPosition({
+    color = arguments.color
+  })
+
+  return {
+    x = decksPosition.x + 3,
+    y = decksPosition.y,
+    z = decksPosition.z + 8
+  }
+end
+
+function getDiscardDeckPosition(arguments)
+  local drawPosition = getDrawDeckPosition({
+    color = arguments.color
+  })
+
+  return {
+    x = drawPosition.x + 10,
+    y = drawPosition.y,
+    z = drawPosition.z
+  }
+end
+
 function setupPlayerDecks(arguments)
   local color = arguments.color
 
@@ -1909,11 +1992,9 @@ function setupPlayerDecks(arguments)
   local characterBag = getObjectFromGUID(OBJECTS.characterBags[character])
   local boardBounds = characterBoard.getBoundsNormalized()
 
-  local decksPosition = {
-    x = handZonePosition.x - boardBounds.size.x / 2 - 1.2,
-    y = handZonePosition.y,
-    z = handZonePosition.z + 16
-  }
+  local decksPosition = getDecksPosition({
+    color = color
+  })
   local starterDeck = characterBag.takeObject({
     position = decksPosition,
     rotation = {
@@ -2048,11 +2129,7 @@ function prepareEnemyAfterSpawn(arguments)
   spawnObject({
     type = "ScriptingTrigger",
     position = cardPosition,
-    scale = {
-      x = cardBounds.size.x,
-      y = cardBounds.size.y + 0.3,
-      z = cardBounds.size.z,
-    },
+    scale = { cardBounds.size.x, cardBounds.size.y + 0.3, cardBounds.size.z },
     callback_function = function(zone)
       myLog("Spawned scripting zone for card: "..zone.guid..".")
       OBJECTS.combat.zoneToEnemy[zone.guid] = card.guid
@@ -2175,6 +2252,49 @@ function queueSummonFor(arguments)
   })
 end
 
+function isCombatDone(arguments)
+  local combat = arguments.combat
+  local players = arguments.players
+end
+
+function setEnergyForPlayer(color, energy)
+  GAME_DATA.players[color].energy = energy
+end
+
+function setBlockForPlayer(color, energy)
+  GAME_DATA.players[color].block = energy
+end
+
+function startCombatStartTurnPhase()
+  myLog("Start combat \"Start turn phase\".")
+  local colors = getPlayingColors()
+
+  for index, color in ipairs(colors) do
+    setEnergyForPlayer(color, 3)
+    setBlockForPlayer(color, 0)
+    local playerDrawZone = getObjectFromGUID(OBJECTS.playerDrawScriptingZones[color])
+    local objectsInDraw = playerDrawZone.getObjects()
+    for _, object in ipairs(objectsInDraw) do
+      if object.name == "Deck" then
+        object.deal(5, color)
+      end
+      if object.name == "Card" then
+        object.deal(1, color)
+      end
+    end
+  end
+end
+
+function startCombatPlayersTurn()
+  myLog("Start combat players turn.")
+  startCombatStartTurnPhase()
+end
+
+function startCombatLoop()
+  myLog("Start combat loop.")
+  startCombatPlayersTurn()
+end
+
 function setupEncounter(arguments)
   local bag = arguments.bag
   local map = arguments.map
@@ -2238,6 +2358,7 @@ function setupEncounter(arguments)
 
             if GAME_DATA.combat.encountersSetup == #getPlayingColors() then
               handleSummon()
+              startCombatLoop()
             end
           end
         })
@@ -2265,6 +2386,28 @@ function startEncounter()
 
 end
 
+function setupPlayerBoardZone(arguments)
+  local color = arguments.color
+  local playerBoard = getObjectFromGUID(OBJECTS.characterBoards[GAME_DATA.players[color].character])
+  local playerBoardPosition = playerBoard.getPosition()
+  local playerBoardBounds = playerBoard.getBounds()
+  spawnObject({
+    type = "ScriptingTrigger",
+    position = {
+      x = playerBoardPosition.x,
+      y = playerBoardPosition.y + 0.1,
+      z = playerBoardPosition.z,
+    },
+    scale = playerBoardBounds.size,
+    callback_function = function(zone)
+      local bounds = zone.getBounds()
+      local position = zone.getPosition()
+      myLog("Scripting board zone spawned for player("..color.."): "..zone.guid..".")
+      OBJECTS.playerBoardScriptingZones[color] = zone.guid
+    end
+  })
+end
+
 function handleNeowEffects(effects, color)
   function handleNeowEffectsCoroutine()
     if GAME_DATA.players[color].neowBonusDone then
@@ -2284,9 +2427,47 @@ function handleNeowEffects(effects, color)
     end
     local card = getObjectFromGUID(OBJECTS.playerNeowBlessingCard[color])
     card.destruct()
-    setupPlayerPlayZone({
+    -- setupPlayerPlayZone({
+    --   color = color
+    -- })
+    setupPlayerBoardZone({
       color = color
     })
+
+    local character = GAME_DATA.players[color].character
+    local playerStarterDeck = getObjectFromGUID(OBJECTS.characterDecks[character].starterDeck)
+    local deckBounds = playerStarterDeck.getBounds()
+    local drawDeckPosition = getDrawDeckPosition({
+      color = color
+    })
+    local tableObject = Tables.getTableObject()
+    local tableSnapPoints = tableObject.getSnapPoints()
+    table.insert(tableSnapPoints, {
+      position = tableObject.positionToLocal({
+        x = drawDeckPosition.x,
+        y = drawDeckPosition.y - 1.5,
+        z = drawDeckPosition.z
+      })
+    })
+    tableObject.setSnapPoints(tableSnapPoints)
+    spawnObject({
+      type = "ScriptingTrigger",
+      position = {
+        x = drawDeckPosition.x,
+        y = drawDeckPosition.y - 1.5,
+        z = drawDeckPosition.z
+      },
+      scale = {
+        x = deckBounds.size.x,
+        y = deckBounds.size.y + 1.5,
+        z = deckBounds.size.z,
+      },
+      callback_function = function(zone)
+        myLog("Spawned draw scripting zone: "..zone.guid..".")
+        OBJECTS.playerDrawScriptingZones[color] = zone.guid
+      end
+    })
+    playerStarterDeck.setPositionSmooth(drawDeckPosition)
     local playingColors = getPlayingColors()
     local colorsDoneNeowBonus = {}
     for index, color in ipairs(playingColors) do
