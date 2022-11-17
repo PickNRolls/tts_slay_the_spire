@@ -7,7 +7,8 @@ GAME_DATA = {
     inProgress = false,
     encountersSetup = 0,
     summonQueue = {},
-    enemies = {}
+    enemies = {},
+    reducedCards = {}
   },
   players = {
     Red = {
@@ -2590,6 +2591,15 @@ function setupAct(arguments)
   end
 
   startLuaCoroutine(self, "setupActCoroutine")
+end
+
+function onObjectPickUp(color, object)
+  local isCombat = GAME_DATA.combat.inProgress
+  if isCombat and object.name == "Card" and
+    not GAME_DATA.combat.reducedCards[object.guid] then
+      object.scale(0.6)
+      GAME_DATA.combat.reducedCards[object.guid] = true
+  end
 end
 
 function onObjectEnterZone(zone, object)
