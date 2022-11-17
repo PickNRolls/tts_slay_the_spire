@@ -4,7 +4,9 @@ GAME_DATA = {
   act = 1,
   isFirstEncounterDone = false,
   combat = {
-    inProgress = false
+    inProgress = false,
+    encountersSetup = 0,
+    summonQueue = {}
   },
   players = {
     Red = {
@@ -127,7 +129,7 @@ OBJECTS = {
 
   combat = {
     zoneToEnemy = {},
-    enemyToZone = {}
+    enemyToZone = {},
   }
 }
 
@@ -309,6 +311,603 @@ CARDS_DATA = {
     },
     ["1"] = {
       Summon = {
+        ["Green Louse 1"] = {
+    name = "Green Louse 1",
+    hp = 3,
+    dieActions = {
+      ["1"] = { {
+        type = "Hit",
+        power = 2
+      } },
+      ["2"] = { {
+        type = "Hit",
+        power = 2
+      } },
+      ["3"] = { {
+        type = "Hit",
+        power = 1
+      } },
+      ["4"] = { {
+        type = "Hit",
+        power = 1
+      } },
+      ["5"] = { {
+        type = "Weak"
+      } },
+      ["6"] = { {
+        type = "Weak"
+      } }
+    },
+    abilities = { "Curl Up" }
+  },
+  ["Green Louse 2"] = {
+    name = "Green Louse 2",
+    hp = 3,
+    dieActions = {
+      ["1"] = { {
+        type = "Hit",
+        power = 1
+      } },
+      ["2"] = { {
+        type = "Hit",
+        power = 1
+      } },
+      ["3"] = { {
+        type = "Weak"
+      } },
+      ["4"] = { {
+        type = "Weak"
+      } },
+      ["5"] = { {
+        type = "Hit",
+        power = 2
+      } },
+      ["6"] = { {
+        type = "Hit",
+        power = 2
+      } }
+    },
+    abilities = { "Curl Up" }
+  },
+  ["Sneaky Gremlin"] = {
+    name = "Sneaky Gremlin",
+    hp = 2,
+    everyTurnActions = { {
+      type = "Hit",
+      power = 2
+    } }
+  },
+  ["Fat Gremlin"] = {
+    name = "Fat Gremlin",
+    hp = 2,
+    everyTurnActions = { {
+      type = "Hit",
+      power = 1
+    }, {
+      type = "Weak"
+    } }
+  },
+  ["Sentry B"] = {
+    name = "Sentry B",
+    hp = 8,
+    dieActions = {
+      ["1"] = { {
+        type = "Hit",
+        power = 3
+      } },
+      ["2"] = { {
+        type = "Hit",
+        power = 3
+      } },
+      ["3"] = { {
+        type = "Hit",
+        power = 3
+      } },
+      ["4"] = { {
+        type = "Dazed"
+      } },
+      ["5"] = { {
+        type = "Dazed"
+      } },
+      ["6"] = { {
+        type = "Dazed"
+      } }
+    }
+  },
+  ["Spike Slime 3"] = {
+    name = "Spike Slime 3",
+    hp = 5,
+    dieActions = {
+      ["1"] = { {
+        type = "Vulnerable"
+      } },
+      ["2"] = { {
+        type = "Vulnerable"
+      } },
+      ["3"] = { {
+        type = "Hit",
+        power = 1
+      }, {
+        type = "Dazed"
+      } },
+      ["4"] = { {
+        type = "Hit",
+        power = 1
+      }, {
+        type = "Dazed"
+      } },
+      ["5"] = { {
+        type = "Hit",
+        power = 2
+      } },
+      ["6"] = { {
+        type = "Hit",
+        power = 2
+      } }
+    }
+  },
+  ["Spike Slime 1"] = {
+    name = "Spike Slime 1",
+    hp = 5,
+    dieActions = {
+      ["1"] = { {
+        type = "Vulnerable"
+      } },
+      ["2"] = { {
+        type = "Vulnerable"
+      } },
+      ["3"] = { {
+        type = "Hit",
+        power = 2
+      } },
+      ["4"] = { {
+        type = "Hit",
+        power = 2
+      } },
+      ["5"] = { {
+        type = "Hit",
+        power = 1
+      }, {
+        type = "Dazed"
+      } },
+      ["6"] = { {
+        type = "Hit",
+        power = 1
+      }, {
+        type = "Dazed"
+      } }
+    }
+  },
+  ["Spike Slime 2"] = {
+    name = "Spike Slime 2",
+    hp = 5,
+    dieActions = {
+      ["1"] = { {
+        type = "Hit",
+        power = 1
+      }, {
+        type = "Dazed"
+      } },
+      ["2"] = { {
+        type = "Hit",
+        power = 1
+      }, {
+        type = "Dazed"
+      } },
+      ["3"] = { {
+        type = "Vulnerable"
+      } },
+      ["4"] = { {
+        type = "Vulnerable"
+      } },
+      ["5"] = { {
+        type = "Hit",
+        power = 2
+      } },
+      ["6"] = { {
+        type = "Hit",
+        power = 2
+      } }
+    }
+  },
+  ["Spike Slime 4"] = {
+    name = "Spike Slime 4",
+    hp = 5,
+    dieActions = {
+      ["1"] = { {
+        type = "Hit",
+        power = 2
+      } },
+      ["2"] = { {
+        type = "Hit",
+        power = 2
+      } },
+      ["3"] = { {
+        type = "Hit",
+        power = 1
+      }, {
+        type = "Dazed"
+      } },
+      ["4"] = { {
+        type = "Hit",
+        power = 1
+      }, {
+        type = "Dazed"
+      } },
+      ["5"] = { {
+        type = "Vulnerable"
+      } },
+      ["6"] = { {
+        type = "Vulnerable"
+      } }
+    }
+  },
+  ["Mad Gremlin"] = {
+    name = "Mad Gremlin",
+    hp = 5,
+    everyTurnActions = { {
+      type = "Hit",
+      power = 1
+    } },
+    abilities = { "Angry" }
+  },
+  ["Red Louse"] = {
+    name = "Red Louse",
+    hp = 3,
+    dieActions = {
+      ["1"] = { {
+        type = "Hit",
+        power = 2
+      } },
+      ["2"] = { {
+        type = "Hit",
+        power = 2
+      } },
+      ["3"] = { {
+        type = "Hit",
+        power = 1
+      } },
+      ["4"] = { {
+        type = "Hit",
+        power = 1
+      } },
+      ["5"] = { {
+        type = "Buff"
+      } },
+      ["6"] = { {
+        type = "Buff"
+      } }
+    },
+    cubeActions = { {
+      type = ""
+    }, {
+      type = ""
+    } },
+    abilities = { "Curl Up" }
+  },
+  ["Sentry A"] = {
+    name = "Sentry A",
+    hp = 8,
+    dieActions = {
+      ["1"] = { {
+        type = "Dazed"
+      } },
+      ["2"] = { {
+        type = "Dazed"
+      } },
+      ["3"] = { {
+        type = "Dazed"
+      } },
+      ["4"] = { {
+        type = "Hit",
+        power = 3
+      } },
+      ["5"] = { {
+        type = "Hit",
+        power = 3
+      } },
+      ["6"] = { {
+        type = "Hit",
+        power = 3
+      } }
+    }
+  },
+  ["Acid Slime 1"] = {
+    name = "Acid Slime 1",
+    hp = 5,
+    dieActions = {
+      ["1"] = { {
+        type = "Weak"
+      } },
+      ["2"] = { {
+        type = "Weak"
+      } },
+      ["3"] = { {
+        type = "Hit",
+        power = 2
+      } },
+      ["4"] = { {
+        type = "Hit",
+        power = 2
+      } },
+      ["5"] = { {
+        type = "Hit",
+        power = 2
+      }, {
+        type = "Dazed"
+      } },
+      ["6"] = { {
+        type = "Hit",
+        power = 2
+      }, {
+        type = "Dazed"
+      } }
+    }
+  },
+  ["Acid Slime 2"] = {
+    name = "Acid Slime 2",
+    hp = 5,
+    dieActions = {
+      ["1"] = { {
+        type = "Weak"
+      } },
+      ["2"] = { {
+        type = "Weak"
+      } },
+      ["3"] = { {
+        type = "Hit",
+        power = 2
+      }, {
+        type = "Dazed"
+      } },
+      ["4"] = { {
+        type = "Hit",
+        power = 2
+      }, {
+        type = "Dazed"
+      } },
+      ["5"] = { {
+        type = "Hit",
+        power = 2
+      } },
+      ["6"] = { {
+        type = "Hit",
+        power = 2
+      } }
+    }
+  },
+  ["Acid Slime 4"] = {
+    name = "Acid Slime 4",
+    hp = 5,
+    dieActions = {
+      ["1"] = { {
+        type = "Hit",
+        power = 2
+      } },
+      ["2"] = { {
+        type = "Hit",
+        power = 2
+      } },
+      ["3"] = { {
+        type = "Weak"
+      } },
+      ["4"] = { {
+        type = "Weak"
+      } },
+      ["5"] = { {
+        type = "Hit",
+        power = 2
+      }, {
+        type = "Dazed"
+      } },
+      ["6"] = { {
+        type = "Hit",
+        power = 2
+      }, {
+        type = "Dazed"
+      } }
+    }
+  },
+  ["Acid Slime 3"] = {
+    name = "Acid Slime 3",
+    hp = 5,
+    dieActions = {
+      ["1"] = { {
+        type = "Hit",
+        power = 2
+      }, {
+        type = "Dazed"
+      } },
+      ["2"] = { {
+        type = "Hit",
+        power = 2
+      }, {
+        type = "Dazed"
+      } },
+      ["3"] = { {
+        type = "Hit",
+        power = 2
+      } },
+      ["4"] = { {
+        type = "Hit",
+        power = 2
+      } },
+      ["5"] = { {
+        type = "Weak"
+      } },
+      ["6"] = { {
+        type = "Weak"
+      } }
+    }
+  },
+  ["Large Slime 1"] = {
+    name = "Large Slime 1",
+    hp = 10,
+    dieActions = {
+      ["1"] = { {
+        type = "Weak"
+      }, {
+        type = "Weak"
+      } },
+      ["2"] = { {
+        type = "Weak"
+      }, {
+        type = "Weak"
+      } },
+      ["3"] = { {
+        type = "Hit",
+        power = 4
+      } },
+      ["4"] = { {
+        type = "Hit",
+        power = 4
+      } },
+      ["5"] = { {
+        type = "Hit",
+        power = 3
+      }, {
+        type = "Status green"
+      }, {
+        type = "Status green"
+      } },
+      ["6"] = { {
+        type = "Hit",
+        power = 3
+      }, {
+        type = "Status green"
+      }, {
+        type = "Status green"
+      } }
+    }
+  },
+  ["Large Slime 2"] = {
+    name = "Large Slime 2",
+    hp = 10,
+    dieActions = {
+      ["1"] = { {
+        type = "Hit",
+        power = 4
+      } },
+      ["2"] = { {
+        type = "Hit",
+        power = 4
+      } },
+      ["3"] = { {
+        type = "Hit",
+        power = 3
+      }, {
+        type = "Status green"
+      }, {
+        type = "Status green"
+      } },
+      ["4"] = { {
+        type = "Hit",
+        power = 3
+      }, {
+        type = "Status green"
+      }, {
+        type = "Status green"
+      } },
+      ["5"] = { {
+        type = "Weak"
+      }, {
+        type = "Weak"
+      } },
+      ["6"] = { {
+        type = "Weak"
+      }, {
+        type = "Weak"
+      } }
+    }
+  },
+  ["Large Slime 3"] = {
+    name = "Large Slime 3",
+    hp = 10,
+    dieActions = {
+      ["1"] = { {
+        type = "Hit",
+        power = 3
+      }, {
+        type = "Status green"
+      }, {
+        type = "Status green"
+      } },
+      ["2"] = { {
+        type = "Hit",
+        power = 3
+      }, {
+        type = "Status green"
+      }, {
+        type = "Status green"
+      } },
+      ["3"] = { {
+        type = "Weak"
+      }, {
+        type = "Weak"
+      } },
+      ["4"] = { {
+        type = "Weak"
+      }, {
+        type = "Weak"
+      } },
+      ["5"] = { {
+        type = "Hit",
+        power = 4
+      } },
+      ["6"] = { {
+        type = "Hit",
+        power = 4
+      } }
+    }
+  },
+  ["Fungi Beast"] = {
+    name = "Fungi Beast",
+    hp = 5,
+    dieActions = {
+      ["1"] = { {
+        type = "Hit",
+        power = 1
+      }, {
+        type = "Buff"
+      } },
+      ["2"] = { {
+        type = "Hit",
+        power = 1
+      }, {
+        type = "Buff"
+      } },
+      ["3"] = { {
+        type = "Buff"
+      } },
+      ["4"] = { {
+        type = "Buff"
+      } },
+      ["5"] = { {
+        type = "Hit",
+        power = 2
+      } },
+      ["6"] = { {
+        type = "Hit",
+        power = 2
+      } }
+    },
+    abilities = { "Spore Cloud" }
+  },
+  ["Gremlin Wizard"] = {
+    name = "Gremlin Wizard",
+    hp = 4,
+    cubeActions = { {
+      isNotRepeated = true,
+      actions = { }
+    }, {
+      actions = { {
+        type = "Area of effect"
+      }, {
+        type = "Hit",
+        power = 3
+      } }
+    } }
+  },
         ["Acid Slime 1"] = {
           hp = 5,
           dieActions = {
@@ -1026,11 +1625,12 @@ function getEnemyStats(arguments)
   local tag = arguments.tag
   local name = arguments.name
   local act = arguments.act
-  if not GAME_DATA.isFirstEncounterDone and act == 1 then
+  myLog(tag..name..act)
+  if not GAME_DATA.isFirstEncounterDone and act == 1 and tag == "Encounter" then
     act = "First Encounter"
   end
 
-  return CARDS_DATA.acts[act][tag][name]
+  return CARDS_DATA.acts[tostring(act)][tag][name]
 end
 
 function getPlayingColors()
@@ -1430,32 +2030,110 @@ function handleCombatCardClick()
 
 end
 
-function onObjectPickUp(color, object)
-  if not GAME_DATA.combat.inProgress then
-    return
+function ishallowCopy(table)
+  local copy = {}
+  for index, element in ipairs(table) do
+    copy[index] = element
   end
+  return copy
+end
 
-  local tags = object.getTags()
-  local isCombatClick = false
-  for index, tag in ipairs(tags) do
-    if tag == TAG_TYPES.FIRST_ENCOUNTER or
-      tag == TAG_TYPES.ENCOUNTER or
-      tag == TAG_TYPES.SUMMON or
-      tag == TAG_TYPES.BOSS then
-        isCombatClick = true
-        break
+function prepareEnemyAfterSpawn(arguments)
+  local card = getObjectFromGUID(arguments.cardGuid)
+  card.scale(1.7)
+  card.interactable = false
+  local cardBounds = card.getBounds()
+  local cardPosition = card.getPosition()
+  spawnObject({
+    type = "ScriptingTrigger",
+    position = cardPosition,
+    scale = {
+      x = cardBounds.size.x,
+      y = cardBounds.size.y + 0.3,
+      z = cardBounds.size.z,
+    },
+    callback_function = function(zone)
+      myLog("Spawned scripting zone for card: "..zone.guid..".")
+      OBJECTS.combat.zoneToEnemy[zone.guid] = card.guid
+      OBJECTS.combat.enemyToZone[card.guid] = zone.guid
+    end
+  })
+end
+
+function handleSummon(arguments)
+  myLog("Start summoning all summons.")
+  local act = GAME_DATA.act
+  local summonQueue = GAME_DATA.combat.summonQueue
+  local bagObject = getObjectFromGUID(OBJECTS.actDecksBag[act].base)
+  local bagPosition = bagObject.getPosition()
+  local summonDeck = bagObject.takeObject({
+    index = 1,
+    position = {
+      x = bagPosition.x,
+      y = bagPosition.y,
+      z = bagPosition.z - 4,
+    },
+    callback_function = function(deck)
+      myLog("Take out summon deck summoning.")
+      local deckCards = deck.getObjects()
+      local nameGuidMap = {}
+      for index, card in ipairs(deckCards) do
+        if nameGuidMap[card.name] == nil then
+          nameGuidMap[card.name] = {}
+        end
+        table.insert(nameGuidMap[card.name], card.guid)
       end
-  end
 
-  local isCharacterBoard = object.name == "Custom_Tile" and
-    (object.getName() == "Silent Board" or
-    object.getName() == "Ironclad Board" or
-    object.getName() == "Defect Board" or
-    object.getName() == "Watcher Board")
+      for index, guid in ipairs(summonQueue) do
+        local card = getObjectFromGUID(guid)
+        local cardPosition = card.getPosition()
+        local cardName = card.getName()
+        local cardStats = getEnemyStats({
+          act = act,
+          tag = card.getTags()[1],
+          name = cardName
+        })
+        local summons = cardStats.summons
+        for _, summon in ipairs(summons) do
+          local summoned = 0
+          local variants = ishallowCopy(summon.variants)
+          while summoned ~= summon.amount do
+            local randomVariant = variants[math.random(#variants)]
+            local guidTable = nameGuidMap[randomVariant]
+            local randomN = math.random(#guidTable)
+            local randomGuid = guidTable[math.random(#guidTable)]
+            table.remove(guidTable, randomN)
+            deck.takeObject({
+              guid = randomGuid,
+              position = {
+                x = cardPosition.x + 5,
+                y = cardPosition.y,
+                z = cardPosition.z,
+              },
+              rotation = {
+                x = 180,
+                y = 0,
+                z = 180
+              },
+              callback_function = function(card)
+                prepareEnemyAfterSpawn({
+                  cardGuid = card.guid
+                })
+              end
+            })
+            summoned = summoned + 1
+          end
+        end
+      end
+    end
+  })
+end
 
-  if isCombatClick or isCharacterBoard then
-    object.drop()
-  end
+function queueSummonFor(arguments)
+  local act = arguments.act
+  local cardGuid = arguments.cardGuid
+  myLog("Queue summon for: "..cardGuid..".")
+  table.insert(GAME_DATA.combat.summonQueue, cardGuid)
 end
 
 function setupEncounter(arguments)
@@ -1494,10 +2172,7 @@ function setupEncounter(arguments)
             z = characterPositions[index].z
           },
           callback_function = function(card)
-            card.scale(1.7)
-            card.interactable = false
             local cardName = card.getName()
-            local cardBounds = card.getBounds()
             local cardTag = card.getTags()[1]
             local cardStats = getEnemyStats({
               act = act,
@@ -1505,25 +2180,22 @@ function setupEncounter(arguments)
               name = cardName
             })
             myLog("Card in combat: "..cardName..".")
+            GAME_DATA.combat.encountersSetup = GAME_DATA.combat.encountersSetup + 1
 
-            spawnObject({
-              type = "ScriptingTrigger",
-              position = {
-                x = characterPositions[index].x + 4,
-                y = characterPositions[index].y,
-                z = characterPositions[index].z
-              },
-              scale = {
-                x = cardBounds.size.x,
-                y = cardBounds.size.y + 0.3,
-                z = cardBounds.size.z,
-              },
-              callback_function = function(zone)
-                myLog("Spawned scripting zone for card: "..zone.guid..".")
-                OBJECTS.combat.zoneToEnemy[zone.guid] = card.guid
-                OBJECTS.combat.enemyToZone[card.guid] = zone.guid
-              end
+            if cardStats.summons ~= nil and #cardStats.summons > 0 then
+              queueSummonFor({
+                act = act,
+                cardGuid = card.guid
+              })
+            end
+
+            prepareEnemyAfterSpawn({
+              cardGuid = card.guid
             })
+
+            if GAME_DATA.combat.encountersSetup == #getPlayingColors() then
+              handleSummon()
+            end
           end
         })
       end
@@ -1830,7 +2502,7 @@ function setupAct(arguments)
       mapObject = actMap
     })
     local bossDeck = actDecksBag.takeObject({
-      index = 0,
+      index = 4,
       position = bossMapPosition
     })
     bossDeck.shuffle()
