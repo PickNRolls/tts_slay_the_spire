@@ -1625,7 +1625,6 @@ function getEnemyStats(arguments)
   local tag = arguments.tag
   local name = arguments.name
   local act = arguments.act
-  myLog(tag..name..act)
   if not GAME_DATA.isFirstEncounterDone and act == 1 and tag == "Encounter" then
     act = "First Encounter"
   end
