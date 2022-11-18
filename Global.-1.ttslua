@@ -99,6 +99,12 @@ OBJECTS = {
     Blue = "507348",
     Pink = "32fa24"
   },
+  handToPlayer = {
+    ["198286"] = "Red",
+    ["761a86"] = "Green",
+    ["507348"] = "Blue",
+    ["32fa24"] = "Pink",
+  },
   playerGoldBowls = {
     Red = nil,
     Green = nil,
@@ -219,6 +225,19 @@ CARD_TYPES = {
   CURSE = "Curse",
   STATUS_RED = "Status red",
   STATUS_GREEN = "Status green"
+}
+
+CARDS_DATA = {
+  [CHARACTERS[2]] = {
+    ["Strike"] = {
+      type = CARD_TYPES.ATTACK,
+      cost = 1
+    },
+    ["Defend"] = {
+      type = CARD_TYPES.SKILL,
+      cost = 1
+    }
+  }
 }
 
 ENEMIES_DATA = {
@@ -1899,7 +1918,7 @@ function onLoad()
     })
     handZone.setRotation({
       x = 0,
-      y = 180,
+      y = 0,
       z = 0
     })
   end
@@ -2776,11 +2795,40 @@ function setupAct(arguments)
 end
 
 function onObjectPickUp(color, object)
+  -- local isCombat = GAME_DATA.combat.inProgress
+  -- if isCombat and object.name == "Card" and
+  --   not GAME_DATA.combat.reducedCards[object.guid] then
+  --     object.scale(0.5)
+  --     GAME_DATA.combat.reducedCards[object.guid] = true
+  -- end
+end
+
+function onObjectLeaveZone(zone, object)
+  local isCombat = GAME_DATA.combat.inProgress
+  if isCombat then
+    local playerHandGuid = OBJECTS.handToPlayer[zone.guid]
+    local isReducedCard = GAME_DATA.combat.reducedCards[object.guid]
+    if playerHandGuid ~= nil and not isReducedCard then
+      local reducedCard = getObjectFromGUID(object.guid)
+      reducedCard.scale(0.5)
+      GAME_DATA.combat.reducedCards[object.guid] = true
+    end
+  end
+end
+
+function onObjectDrop(color, object)
   local isCombat = GAME_DATA.combat.inProgress
   if isCombat and object.name == "Card" and
-    not GAME_DATA.combat.reducedCards[object.guid] then
-      object.scale(0.6)
-      GAME_DATA.combat.reducedCards[object.guid] = true
+    GAME_DATA.combat.reducedCards[object.guid] then
+      local hand = getObjectFromGUID(OBJECTS.playerHands[color])
+      local cards = hand.getObjects()
+      for _, cardInHand in ipairs(cards) do
+        if object.guid == cardInHand.guid then
+          object.scale(2)
+          GAME_DATA.combat.reducedCards[object.guid] = false
+          break
+        end
+      end
   end
 end
 
@@ -2795,7 +2843,15 @@ function onObjectEnterZone(zone, object)
         tag = enemy.getTags()[1],
         name = enemy.getName()
       })
-      myLog("Object enter into "..enemy.getName()..".")
+      myLog("Object enters into "..enemy.getName()..".")
+    end
+
+    local playerHandGuid = OBJECTS.handToPlayer[zone.guid]
+    local isReducedCard = GAME_DATA.combat.reducedCards[object.guid]
+    if playerHandGuid ~= nil and isReducedCard then
+      local reducedCard = getObjectFromGUID(object.guid)
+      reducedCard.scale(2)
+      GAME_DATA.combat.reducedCards[object.guid] = false
     end
   end
 end
