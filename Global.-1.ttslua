@@ -166,6 +166,13 @@ OBJECTS = {
     Blue = nil,
     Pink = nil
   },
+  playerDiscardScriptingZones = {
+    Red = nil,
+    Green = nil,
+    Blue = nil,
+    Pink = nil
+  },
+  discardScriptingZoneToPlayer = {},
 
   boot = "d4e0e6",
   goldBag1 = "3c7af8",
@@ -1764,17 +1771,69 @@ function myLog(text)
   log("---------------------------")
 end
 
-function finishResolvingCard(arguments)
+
+function getDecksPosition(arguments)
   local color = arguments.color
-  local cardGuid = arguments.cardGuid
-  local card = getObjectFromGUID(cardGuid)
-  local cardName = card.getName()
+  local handZone = getObjectFromGUID(OBJECTS.playerHands[color])
+  local handZonePosition = handZone.getPosition()
+  local character = GAME_DATA.players[color].character
+  local characterBoard = getObjectFromGUID(OBJECTS.characterBoards[character])
+  local boardBounds = characterBoard.getBoundsNormalized()
 
-  myLog("Finish resolving card: "..cardName..".")
+  return {
+    x = handZonePosition.x - boardBounds.size.x / 2 - 1.2,
+    y = handZonePosition.y,
+    z = handZonePosition.z + 16
+  }
+end
 
-  GAME_DATA.combat.playingCard = nil
-  table.insert(GAME_DATA.combat.players[color].playedCardGuidsThisCombat, cardGuid)
-  table.insert(GAME_DATA.combat.players[color].playedCardGuidsThisTurn, cardGuid)
+function getDrawDeckPosition(arguments)
+  local decksPosition = getDecksPosition({
+    color = arguments.color
+  })
+
+  return {
+    x = decksPosition.x + 3,
+    y = decksPosition.y,
+    z = decksPosition.z + 8
+  }
+end
+
+function getDiscardDeckPosition(arguments)
+  local drawPosition = getDrawDeckPosition({
+    color = arguments.color
+  })
+
+  return {
+    x = drawPosition.x + 11,
+    y = drawPosition.y,
+    z = drawPosition.z
+  }
+end
+
+function finishResolvingCard(arguments)
+  function finishResolvingCardCoroutine()
+    local color = arguments.color
+    local cardGuid = arguments.cardGuid
+    local card = getObjectFromGUID(cardGuid)
+    local cardName = card.getName()
+
+    myLog("Finish resolving card: "..cardName..".")
+
+    GAME_DATA.combat.playingCard = nil
+    table.insert(GAME_DATA.combat.players[color].playedCardGuidsThisCombat, cardGuid)
+    table.insert(GAME_DATA.combat.players[color].playedCardGuidsThisTurn, cardGuid)
+
+    local discardPosition = getDiscardDeckPosition({
+      color = color,
+    })
+    card.setPositionSmooth(discardPosition, false, true)
+    waitFrames(100)
+    card.flip()
+    return 1
+  end
+
+  startLuaCoroutine(self, "finishResolvingCardCoroutine")
 end
 
 function getEnergyForPlayer(color)
@@ -1835,7 +1894,10 @@ function resolveCardDefend(arguments)
   resolveCardActionBlock({
     color = color,
     cardGuid = cardGuid,
-    target = target,
+    target = {
+      type = TARGET_TYPES.PLAYER,
+      color = color,
+    },
     amount = 1
   })
 end
@@ -1848,7 +1910,7 @@ function resolveCardSilentDefend(arguments)
   resolveCardDefend(arguments)
 end
 
-function resolveCardSilentNeutalize(arguments)
+function resolveCardSilentNeutralize(arguments)
   finishResolvingCard(arguments)
 end
 
@@ -2158,45 +2220,6 @@ function unsignCharacterFromPlayer(arguments)
   local color = arguments.color
 
   GAME_DATA.players[color].character = nil
-end
-
-function getDecksPosition(arguments)
-  local color = arguments.color
-  local handZone = getObjectFromGUID(OBJECTS.playerHands[color])
-  local handZonePosition = handZone.getPosition()
-  local character = GAME_DATA.players[color].character
-  local characterBoard = getObjectFromGUID(OBJECTS.characterBoards[character])
-  local boardBounds = characterBoard.getBoundsNormalized()
-
-  return {
-    x = handZonePosition.x - boardBounds.size.x / 2 - 1.2,
-    y = handZonePosition.y,
-    z = handZonePosition.z + 16
-  }
-end
-
-function getDrawDeckPosition(arguments)
-  local decksPosition = getDecksPosition({
-    color = arguments.color
-  })
-
-  return {
-    x = decksPosition.x + 3,
-    y = decksPosition.y,
-    z = decksPosition.z + 8
-  }
-end
-
-function getDiscardDeckPosition(arguments)
-  local drawPosition = getDrawDeckPosition({
-    color = arguments.color
-  })
-
-  return {
-    x = drawPosition.x + 10,
-    y = drawPosition.y,
-    z = drawPosition.z
-  }
 end
 
 function setupPlayerDecks(arguments)
@@ -2812,13 +2835,23 @@ function handleNeowEffects(effects, color)
     local drawDeckPosition = getDrawDeckPosition({
       color = color
     })
+    local discardDeckPosition = getDiscardDeckPosition({
+      color = color
+    })
     local tableObject = Tables.getTableObject()
     local tableSnapPoints = tableObject.getSnapPoints()
     table.insert(tableSnapPoints, {
       position = tableObject.positionToLocal({
         x = drawDeckPosition.x,
-        y = drawDeckPosition.y - 1.5,
+        y = drawDeckPosition.y - 2.5,
         z = drawDeckPosition.z
+      })
+    })
+    table.insert(tableSnapPoints, {
+      position = tableObject.positionToLocal({
+        x = discardDeckPosition.x,
+        y = discardDeckPosition.y - 2.5,
+        z = discardDeckPosition.z
       })
     })
     tableObject.setSnapPoints(tableSnapPoints)
@@ -2837,6 +2870,24 @@ function handleNeowEffects(effects, color)
       callback_function = function(zone)
         myLog("Spawned draw scripting zone: "..zone.guid..".")
         OBJECTS.playerDrawScriptingZones[color] = zone.guid
+      end
+    })
+    spawnObject({
+      type = "ScriptingTrigger",
+      position = {
+        x = discardDeckPosition.x,
+        y = discardDeckPosition.y - 1.5,
+        z = discardDeckPosition.z
+      },
+      scale = {
+        x = deckBounds.size.x,
+        y = deckBounds.size.y + 1.5,
+        z = deckBounds.size.z,
+      },
+      callback_function = function(zone)
+        myLog("Spawned discard scripting zone: "..zone.guid..".")
+        OBJECTS.playerDiscardScriptingZones[color] = zone.guid
+        OBJECTS.discardScriptingZoneToPlayer[zone.guid] = color
       end
     })
     playerStarterDeck.setPositionSmooth(drawDeckPosition)
@@ -3176,7 +3227,7 @@ end
 
 function onObjectEnterZone(zone, object)
   local isCombat = GAME_DATA.combat.inProgress
-  if isCombat and object.name == "Card" then
+  if isCombat and object.name == "Card" and zone.name == "ScriptingTrigger" then
     local enemyGuid = OBJECTS.combat.zoneToEnemy[zone.guid]
     local playingCard = GAME_DATA.combat.playingCard
     if enemyGuid ~= nil and playingCard ~= nil and playingCard.cardGuid == object.guid then
@@ -3187,8 +3238,9 @@ function onObjectEnterZone(zone, object)
     end
 
     local playerHandGuid = OBJECTS.handToPlayer[zone.guid]
+    local isPlayerDiscard = OBJECTS.discardScriptingZoneToPlayer[zone.guid] ~= nil
     local isReducedCard = GAME_DATA.combat.reducedCards[object.guid]
-    if playerHandGuid ~= nil and isReducedCard then
+    if (playerHandGuid ~= nil or isPlayerDiscard) and isReducedCard then
       local reducedCard = getObjectFromGUID(object.guid)
       reducedCard.scale(2)
       GAME_DATA.combat.reducedCards[object.guid] = false
