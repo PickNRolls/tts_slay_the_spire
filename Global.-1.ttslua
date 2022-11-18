@@ -1,5 +1,16 @@
 CHARACTERS = {"Ironclad", "Silent", "Defect", "Watcher"}
 
+TURN_TYPES = {
+  PLAYERS = "Players",
+  ENEMIES = "Enemies"
+}
+
+TURN_PHASE_TYPES = {
+  START_OF_TURN = "Start of turn",
+  PLAY = "Play",
+  END_OF_TURN = "End of turn"
+};
+
 GAME_DATA = {
   act = 1,
   isFirstEncounterDone = false,
@@ -7,30 +18,50 @@ GAME_DATA = {
     inProgress = false,
     encountersSetup = 0,
     summonQueue = {},
-    turn = true,
+    turn = TURN_TYPES.PLAYERS,
+    phase = nil,
+    playingCard = nil,
+    players = {
+      Red = {
+        energy = 3,
+        block = 0,
+        playedCardGuidsThisCombat = {},
+        playedCardGuidsThisTurn = {}
+      },
+      Green = {
+        energy = 3,
+        block = 0,
+        playedCardGuidsThisCombat = {},
+        playedCardGuidsThisTurn = {}
+      },
+      Blue = {
+        energy = 3,
+        block = 0,
+        playedCardGuidsThisCombat = {},
+        playedCardGuidsThisTurn = {}
+      },
+      Pink = {
+        energy = 3,
+        block = 0,
+        playedCardGuidsThisCombat = {},
+        playedCardGuidsThisTurn = {}
+      }
+    },
     enemies = {},
     reducedCards = {}
   },
   players = {
     Red = {
       neowBonusDone = false,
-      energy = 3,
-      block = 0
     },
     Green = {
       neowBonusDone = false,
-      energy = 3,
-      block = 0
     },
     Blue = {
       neowBonusDone = false,
-      energy = 3,
-      block = 0
     },
     Pink = {
       neowBonusDone = false,
-      energy = 3,
-      block = 0
     }
   },
   characters = {
@@ -196,6 +227,7 @@ EFFECT_TYPES = {
 }
 
 TARGET_TYPES = {
+  ENEMY = "Enemy",
   PLAYER = "Player"
 }
 
@@ -211,6 +243,9 @@ ACTION_TYPES = {
   HIT = "Hit",
   WEAK = "Weak",
   DAZED = "Dazed",
+  BUFF = "Buff",
+  VULNERABLE = "Vulnerable",
+  AREA_OF_EFFECT = "Area of effect"
 }
 
 REWARD_TYPES = {
@@ -228,6 +263,20 @@ CARD_TYPES = {
 }
 
 CARDS_DATA = {
+  [CHARACTERS[1]] = {
+    ["Strike"] = {
+      type = CARD_TYPES.ATTACK,
+      cost = 1
+    },
+    ["Defend"] = {
+      type = CARD_TYPES.SKILL,
+      cost = 1
+    },
+    ["Bash"] = {
+      type = CARD_TYPES.ATTACK,
+      cost = 2
+    }
+  },
   [CHARACTERS[2]] = {
     ["Strike"] = {
       type = CARD_TYPES.ATTACK,
@@ -236,7 +285,35 @@ CARDS_DATA = {
     ["Defend"] = {
       type = CARD_TYPES.SKILL,
       cost = 1
-    }
+    },
+    ["Neutralize"] = {
+      type = CARD_TYPES.ATTACK,
+      cost = 0
+    },
+    ["Survivor"] = {
+      type = CARD_TYPES.SKILL,
+      cost = 1
+    },
+  },
+  [CHARACTERS[3]] = {
+    ["Strike"] = {
+      type = CARD_TYPES.ATTACK,
+      cost = 1
+    },
+    ["Defend"] = {
+      type = CARD_TYPES.SKILL,
+      cost = 1
+    },
+  },
+  [CHARACTERS[4]] = {
+    ["Strike"] = {
+      type = CARD_TYPES.ATTACK,
+      cost = 1
+    },
+    ["Defend"] = {
+      type = CARD_TYPES.SKILL,
+      cost = 1
+    },
   }
 }
 
@@ -1687,6 +1764,126 @@ function myLog(text)
   log("---------------------------")
 end
 
+function finishResolvingCard(arguments)
+  local color = arguments.color
+  local cardGuid = arguments.cardGuid
+  local card = getObjectFromGUID(cardGuid)
+  local cardName = card.getName()
+
+  myLog("Finish resolving card: "..cardName..".")
+
+  GAME_DATA.combat.playingCard = nil
+  table.insert(GAME_DATA.combat.players[color].playedCardGuidsThisCombat, cardGuid)
+  table.insert(GAME_DATA.combat.players[color].playedCardGuidsThisTurn, cardGuid)
+end
+
+function getEnergyForPlayer(color)
+  return GAME_DATA.combat.players[color].energy
+end
+
+function setEnergyForPlayer(color, energy)
+  GAME_DATA.combat.players[color].energy = energy
+end
+
+function getBlockForPlayer(color)
+  return GAME_DATA.combat.players[color].block
+end
+
+function setBlockForPlayer(color, block)
+  local logString = color.." current block: "..GAME_DATA.combat.players[color].block
+  logString = logString..".\nSet block to: "..block.."."
+  myLog(logString)
+  local character = GAME_DATA.players[color].character
+  local board = getObjectFromGUID(OBJECTS.characterBoards[character])
+  board.call("setBlock", {
+    amount = block
+  })
+  GAME_DATA.combat.players[color].block = block
+end
+
+function resolveCardActionBlock(arguments)
+  local color = arguments.color
+  local target = arguments.target
+  local targetType = target.type
+  local targetColor = target.color
+  local amount = arguments.amount
+
+  if targetType ~= TARGET_TYPES.PLAYER then
+    targetType = TARGET_TYPES.PLAYER
+    targetColor = color
+  end
+
+  local currentBlock = getBlockForPlayer(targetColor)
+  setBlockForPlayer(targetColor, currentBlock + amount)
+
+  finishResolvingCard(arguments)
+end
+
+function resolveCardStrike(arguments)
+  local color = arguments.color
+  local cardGuid = arguments.cardGuid
+  local target = arguments.target
+
+  finishResolvingCard(arguments)
+end
+
+function resolveCardDefend(arguments)
+  local color = arguments.color
+  local cardGuid = arguments.cardGuid
+  local target = arguments.target
+
+  resolveCardActionBlock({
+    color = color,
+    cardGuid = cardGuid,
+    target = target,
+    amount = 1
+  })
+end
+
+function resolveCardSilentStrike(arguments)
+  resolveCardStrike(arguments)
+end
+
+function resolveCardSilentDefend(arguments)
+  resolveCardDefend(arguments)
+end
+
+function resolveCardSilentNeutalize(arguments)
+  finishResolvingCard(arguments)
+end
+
+function resolveCardSilentSurvivor(arguments)
+  finishResolvingCard(arguments)
+end
+
+function resolveCardIroncladStrike(arguments)
+  resolveCardStrike(arguments)
+end
+
+function resolveCardIroncladDefend(arguments)
+  resolveCardDefend(arguments)
+end
+
+function resolveCardIroncladBash(arguments)
+  finishResolvingCard(arguments)
+end
+
+function resolveCardDefectStrike(arguments)
+  resolveCardStrike(arguments)
+end
+
+function resolveCardDefectDefend(arguments)
+  resolveCardDefend(arguments)
+end
+
+function resolveCardWatcherStrike(arguments)
+  resolveCardStrike(arguments)
+end
+
+function resolveCardWatcherDefend(arguments)
+  resolveCardDefend(arguments)
+end
+
 function getEnemyStats(arguments)
   local tag = arguments.tag
   local name = arguments.name
@@ -2272,41 +2469,196 @@ function queueSummonFor(arguments)
   })
 end
 
+function setTurn(arguments)
+  local turn = arguments.turn
+
+  local turnChanges = GAME_DATA.combat.turn ~= turn
+  GAME_DATA.combat.turn = turn
+  if turnChanges then
+    myLog("Change turn to "..turn..".")
+  end
+end
+
 function isCombatDone(arguments)
   local combat = arguments.combat
   local players = arguments.players
 end
 
-function setEnergyForPlayer(color, energy)
-  GAME_DATA.players[color].energy = energy
-end
+function drawCards(arguments)
+  local color = arguments.color
+  local amount = arguments.amount
 
-function setBlockForPlayer(color, energy)
-  GAME_DATA.players[color].block = energy
-end
-
-function startCombatStartTurnPhase()
-  myLog("Start combat \"Start turn phase\".")
-  local colors = getPlayingColors()
-
-  for index, color in ipairs(colors) do
-    setEnergyForPlayer(color, 3)
-    setBlockForPlayer(color, 0)
-    local playerDrawZone = getObjectFromGUID(OBJECTS.playerDrawScriptingZones[color])
-    local objectsInDraw = playerDrawZone.getObjects()
-    for _, object in ipairs(objectsInDraw) do
-      if object.name == "Deck" then
-        object.deal(5, color)
-      end
-      if object.name == "Card" then
-        object.deal(1, color)
-      end
+  local playerDrawZone = getObjectFromGUID(OBJECTS.playerDrawScriptingZones[color])
+  local objectsInDraw = playerDrawZone.getObjects()
+  for _, object in ipairs(objectsInDraw) do
+    if object.name == "Deck" then
+      object.deal(5, color)
+    end
+    if object.name == "Card" then
+      object.deal(1, color)
     end
   end
 end
 
+function canPlayerPlayCard(arguments)
+  local color = arguments.color
+  local card = arguments.card
+  local cardName = card.getName()
+  local character = GAME_DATA.players[color].character
+  local cardData = CARDS_DATA[character][cardName]
+  local energy = getEnergyForPlayer(color)
+
+  if GAME_DATA.combat.playingCard ~= nil then
+    return false
+  end
+
+  if cardData.cost > energy then
+    return false
+  end
+
+  return true
+end
+
+function spendEnergy(arguments)
+  local color = arguments.color
+  local amount = arguments.amount
+
+  local oldEnergy = getEnergyForPlayer(color)
+  local newEnergy = oldEnergy - amount
+  setEnergyForPlayer(color, newEnergy)
+
+  local logString = color..":\nCurrent energy: "..oldEnergy.."."
+  logString = logString.."\nSpend "..amount.." energy."
+  logString = logString.."\nNew energy: "..newEnergy.."."
+  myLog(logString)
+end
+
+function resolvePlayingCardEffects()
+  local playingCard = GAME_DATA.combat.playingCard
+  local color = playingCard.color
+  local cardName = playingCard.cardName
+  local cardGuid = playingCard.cardGuid
+  local character = GAME_DATA.players[color].character
+  local cardData = CARDS_DATA[character][cardName]
+  local target = playingCard.target
+
+  spendEnergy({
+    color = color,
+    amount = cardData.cost
+  })
+  local resolverName = "resolveCard"..character..string.gsub(cardName, "+", "Plus")
+  Global.call(resolverName, {
+    color = color,
+    cardGuid = cardGuid,
+    target = target,
+  })
+end
+
+function onPlayingCardTargetChosen(arguments)
+  local targetType = arguments.type
+  local targetCardGuid = arguments.cardGuid
+
+  GAME_DATA.combat.playingCard.target = {
+    type = targetType,
+    guid = targetCardGuid,
+  }
+
+  resolvePlayingCardEffects()
+end
+
+function startPlayCard(arguments)
+  local color = arguments.color
+  local card = arguments.card
+  local cardName = card.getName()
+
+  GAME_DATA.combat.playingCard = {
+    color = color,
+    cardName = cardName,
+    cardGuid = card.guid,
+  }
+end
+
+function onPlayerDropsCard(arguments)
+  function onPlayerDropsCardCoroutine()
+    local color = arguments.color
+    local card = arguments.card
+
+    if canPlayerPlayCard({
+      color = color,
+      card = card
+    }) then
+      startPlayCard({
+        color = color,
+        card = card
+      })
+
+      waitFrames(120)
+
+      if GAME_DATA.combat.playingCard ~= nil and GAME_DATA.combat.playingCard.target == nil then
+        card.deal(1, color)
+        GAME_DATA.combat.playingCard = nil
+      end
+    else
+      card.deal(1, color)
+    end
+
+    return 1
+  end
+
+  startLuaCoroutine(self, "onPlayerDropsCardCoroutine")
+end
+
+function setCombatPhase(arguments)
+  local phase = arguments.phase
+  myLog("Set combat phase: "..phase..".")
+  GAME_DATA.combat.phase = phase
+end
+
+function startCombatPlayPhase()
+  setCombatPhase({
+    phase = TURN_PHASE_TYPES.PLAY
+  })
+end
+
+function startCombatStartTurnPhase()
+  setCombatPhase({
+    phase = TURN_PHASE_TYPES.START_OF_TURN
+  })
+  function startCombatStartTurnPhaseCoroutine()
+    local colors = getPlayingColors()
+    local _players = Player.getPlayers()
+    local players = {}
+    for index, color in ipairs(colors) do
+      for _, player in ipairs(_players) do
+        if player.color == color then
+          players[color] = player
+        end
+      end
+    end
+
+    for index, color in ipairs(colors) do
+      local playerObject = players[color]
+      setEnergyForPlayer(color, 3)
+      setBlockForPlayer(color, 0)
+      drawCards({
+        color = color,
+        amount = 5
+      })
+    end
+
+    startCombatPlayPhase()
+
+    return 1
+  end
+
+  startLuaCoroutine(self, "startCombatStartTurnPhaseCoroutine")
+end
+
 function startCombatPlayersTurn()
   myLog("Start combat players turn.")
+  setTurn({
+    turn = TURN_TYPES.PLAYERS
+  })
   startCombatStartTurnPhase()
 end
 
@@ -2488,6 +2840,7 @@ function handleNeowEffects(effects, color)
       end
     })
     playerStarterDeck.setPositionSmooth(drawDeckPosition)
+    playerStarterDeck.interactable = true
     local playingColors = getPlayingColors()
     local colorsDoneNeowBonus = {}
     for index, color in ipairs(playingColors) do
@@ -2794,15 +3147,6 @@ function setupAct(arguments)
   startLuaCoroutine(self, "setupActCoroutine")
 end
 
-function onObjectPickUp(color, object)
-  -- local isCombat = GAME_DATA.combat.inProgress
-  -- if isCombat and object.name == "Card" and
-  --   not GAME_DATA.combat.reducedCards[object.guid] then
-  --     object.scale(0.5)
-  --     GAME_DATA.combat.reducedCards[object.guid] = true
-  -- end
-end
-
 function onObjectLeaveZone(zone, object)
   local isCombat = GAME_DATA.combat.inProgress
   if isCombat then
@@ -2810,6 +3154,9 @@ function onObjectLeaveZone(zone, object)
     local isReducedCard = GAME_DATA.combat.reducedCards[object.guid]
     if playerHandGuid ~= nil and not isReducedCard then
       local reducedCard = getObjectFromGUID(object.guid)
+      if reducedCard == nil then
+        return
+      end
       reducedCard.scale(0.5)
       GAME_DATA.combat.reducedCards[object.guid] = true
     end
@@ -2818,32 +3165,25 @@ end
 
 function onObjectDrop(color, object)
   local isCombat = GAME_DATA.combat.inProgress
-  if isCombat and object.name == "Card" and
-    GAME_DATA.combat.reducedCards[object.guid] then
-      local hand = getObjectFromGUID(OBJECTS.playerHands[color])
-      local cards = hand.getObjects()
-      for _, cardInHand in ipairs(cards) do
-        if object.guid == cardInHand.guid then
-          object.scale(2)
-          GAME_DATA.combat.reducedCards[object.guid] = false
-          break
-        end
-      end
+
+  if isCombat and object.name == "Card" then
+    onPlayerDropsCard({
+      color = color,
+      card = object
+    })
   end
 end
 
 function onObjectEnterZone(zone, object)
   local isCombat = GAME_DATA.combat.inProgress
-  if isCombat then
+  if isCombat and object.name == "Card" then
     local enemyGuid = OBJECTS.combat.zoneToEnemy[zone.guid]
-    if enemyGuid ~= nil then
-      local enemy = getObjectFromGUID(enemyGuid)
-      local stats = getEnemyStats({
-        act = GAME_DATA.act,
-        tag = enemy.getTags()[1],
-        name = enemy.getName()
+    local playingCard = GAME_DATA.combat.playingCard
+    if enemyGuid ~= nil and playingCard ~= nil and playingCard.cardGuid == object.guid then
+      onPlayingCardTargetChosen({
+        type = TARGET_TYPES.ENEMY,
+        cardGuid = enemyGuid
       })
-      myLog("Object enters into "..enemy.getName()..".")
     end
 
     local playerHandGuid = OBJECTS.handToPlayer[zone.guid]
