@@ -98,3 +98,11 @@ function setBlock(arguments)
     z = boardPosition.z + boardBounds.size.z / 2 + -3.6,
   })
 end
+
+function setHp(arguments)
+  Global.call("setCharacterBoardHp", {
+    hpToken = OBJECTS.hpToken,
+    character = "Watcher",
+    value = arguments.value,
+  })
+end

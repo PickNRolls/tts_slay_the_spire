@@ -1,3 +1,5 @@
+DEBUG_ONLY_LOSE_HP_NEOW = true
+
 CHARACTERS = {"Ironclad", "Silent", "Defect", "Watcher"}
 
 TURN_TYPES = {
@@ -10,6 +12,16 @@ TURN_PHASE_TYPES = {
   PLAY = "Play",
   END_OF_TURN = "End of turn"
 };
+
+CHARACTER_MAX_HP = {
+  [CHARACTERS[1]] = 10,
+  [CHARACTERS[2]] = 9,
+  [CHARACTERS[3]] = 9,
+  [CHARACTERS[4]] = 9,
+}
+
+BOARD_HP_OFFSET = 0.927
+BOARD_LEFT_OFFSET = 0.92
 
 GAME_DATA = {
   act = 1,
@@ -53,30 +65,20 @@ GAME_DATA = {
   players = {
     Red = {
       neowBonusDone = false,
+      hp = 0,
     },
     Green = {
       neowBonusDone = false,
+      hp = 0,
     },
     Blue = {
       neowBonusDone = false,
+      hp = 0,
     },
     Pink = {
       neowBonusDone = false,
+      hp = 0,
     }
-  },
-  characters = {
-    [CHARACTERS[1]] = {
-      MAX_HP = 10
-    },
-    [CHARACTERS[2]] = {
-      MAX_HP = 9
-    },
-    [CHARACTERS[3]] = {
-      MAX_HP = 9
-    },
-    [CHARACTERS[4]] = {
-      MAX_HP = 9
-    },
   }
 }
 
@@ -177,6 +179,9 @@ OBJECTS = {
   boot = "d4e0e6",
   goldBag1 = "3c7af8",
   goldBag5 = "4aeac9",
+  weakBag = "a0b349",
+  blockBag = "ffeff0",
+  block5Bag = "44889c",
 
   actMaps = {
     "0b5712",
@@ -253,6 +258,10 @@ ACTION_TYPES = {
   BUFF = "Buff",
   VULNERABLE = "Vulnerable",
   AREA_OF_EFFECT = "Area of effect"
+}
+
+COMBAT_EFFECT_TYPES = {
+  WEAK = "Weak"
 }
 
 REWARD_TYPES = {
@@ -1860,6 +1869,54 @@ function setBlockForPlayer(color, block)
   GAME_DATA.combat.players[color].block = block
 end
 
+function addBlockForEnemy(guid, block)
+  local enemyData = GAME_DATA.combat.enemies[guid]
+  local enemyName = enemyData.name
+  local newBlock = enemyData.block + block
+  local logString = enemyName.." current block: "..enemyData.block
+  logString = logString..".\nAdd "..block.." block.\n"
+  logString = logString.."New block: "..newBlock.."."
+  myLog(logString)
+
+  local card = getObjectFromGUID(guid)
+  card.UI.setAttribute("Block image", "active", "true")
+  card.UI.setAttributes("Block text", {
+    active = "true",
+    text = tostring(newBlock)
+  })
+  enemyData.block = newBlock
+end
+
+function setCharacterBoardHp(arguments)
+  local character = arguments.character
+  local value = arguments.value
+  local hpToken = getObjectFromGUID(arguments.hpToken)
+  local characterBoard = getObjectFromGUID(OBJECTS.characterBoards[character])
+  local maxHp = CHARACTER_MAX_HP[character]
+  local boardPosition = characterBoard.getPosition()
+  local boardBounds = characterBoard.getBounds()
+  local boardStart = boardPosition.x - boardBounds.size.x / 2
+
+  hpToken.setPositionSmooth({
+    x = boardStart + BOARD_LEFT_OFFSET + BOARD_HP_OFFSET * value - 1,
+    y = boardPosition.y + 1,
+    z = boardPosition.z + boardBounds.size.z / 2 + -5.8,
+  })
+end
+
+function losePlayerHp(color, amount)
+  local playerData = GAME_DATA.players[color]
+  local character = playerData.character
+  local newHp = playerData.hp - amount
+  local logString = color.." current hp: "..playerData.hp
+  logString = logString..".\nLose "..amount.." hp.\n"
+  logString = logString.."New hp: "..newHp.."."
+  myLog(logString)
+  local characterBoard = getObjectFromGUID(OBJECTS.characterBoards[character])
+  characterBoard.call("setHp", { value = newHp })
+  playerData.hp = newHp
+end
+
 function resolveCardActionBlock(arguments)
   local color = arguments.color
   local target = arguments.target
@@ -1874,14 +1931,93 @@ function resolveCardActionBlock(arguments)
 
   local currentBlock = getBlockForPlayer(targetColor)
   setBlockForPlayer(targetColor, currentBlock + amount)
+end
 
-  finishResolvingCard(arguments)
+function killEnemy(arguments)
+  local guid = arguments.guid
+  local enemy = GAME_DATA.combat.enemies[guid]
+  local zone = getObjectFromGUID(OBJECTS.combat.enemyToZone[guid])
+  myLog("Enemy is killed: "..enemy.name..".")
+  local card = getObjectFromGUID(guid)
+  card.UI.setAttribute("effects", "active", "false")
+  zone.destruct()
+  card.flip()
+end
+
+function resolveCardActionDamage(arguments)
+  local color = arguments.color
+  local target = arguments.target
+  local amount = arguments.amount
+  local enemyGuid = target.guid
+
+  local newHp = GAME_DATA.combat.enemies[enemyGuid].hp - amount
+  local logString = "Damage enemy \""..GAME_DATA.combat.enemies[enemyGuid].name.."\".\n"
+  logString = logString.."Current hp: "..GAME_DATA.combat.enemies[enemyGuid].hp..".\n"
+  logString = logString.."New hp: "..newHp.."."
+  myLog(logString)
+  GAME_DATA.combat.enemies[enemyGuid].hp = newHp
+  if newHp <= 0 then
+    killEnemy({
+      guid = enemyGuid
+    })
+  end
+end
+
+function resolveCardActionWeak(arguments)
+  local color = arguments.color
+  local target = arguments.target
+  local enemyGuid = target.guid
+  local enemyData = GAME_DATA.combat.enemies[enemyGuid]
+
+  myLog("Weak enemy \""..enemyData.name.."\".")
+  table.insert(GAME_DATA.combat.enemies[enemyGuid].effects, COMBAT_EFFECT_TYPES.WEAK)
+  local card = getObjectFromGUID(enemyGuid)
+  local cardPosition = card.getPosition()
+  local cardBounds = card.getBounds()
+  local weakBag = getObjectFromGUID(OBJECTS.weakBag)
+  weakBag.takeObject({
+    position = {
+      x = cardPosition.x - 0.6,
+      y = cardPosition.y + cardBounds.size.y,
+      z = cardPosition.z + cardBounds.size.z / 2
+    },
+    callback_function = function(weakToken)
+      weakToken.interactable = false
+      weakToken.jointTo(card, {
+        type = "Fixed",
+        collision = true,
+        break_force = 1000.0,
+        break_torgue = 1000.0,
+      })
+    end
+  })
+end
+
+function resolveCardActionHit(arguments)
+  local color = arguments.color
+  local target = arguments.target
+  local power = arguments.power
+
+  resolveCardActionDamage({
+    color = color,
+    target = target,
+    amount = power,
+  })
+
+  addBlockForEnemy(target.guid, 1)
 end
 
 function resolveCardStrike(arguments)
   local color = arguments.color
   local cardGuid = arguments.cardGuid
   local target = arguments.target
+
+  resolveCardActionHit({
+    color = color,
+    cardGuid = cardGuid,
+    target = target,
+    power = 1
+  })
 
   finishResolvingCard(arguments)
 end
@@ -1900,6 +2036,8 @@ function resolveCardDefend(arguments)
     },
     amount = 1
   })
+
+  finishResolvingCard(arguments)
 end
 
 function resolveCardSilentStrike(arguments)
@@ -1911,6 +2049,23 @@ function resolveCardSilentDefend(arguments)
 end
 
 function resolveCardSilentNeutralize(arguments)
+  local color = arguments.color
+  local cardGuid = arguments.cardGuid
+  local target = arguments.target
+
+  resolveCardActionHit({
+    color = color,
+    cardGuid = cardGuid,
+    target = target,
+    power = 1
+  })
+
+  resolveCardActionWeak({
+    color = color,
+    cardGuid = cardGuid,
+    target = target
+  })
+
   finishResolvingCard(arguments)
 end
 
@@ -2120,8 +2275,10 @@ function handleGainCardEffect(arguments)
   local color = arguments.color
   local character = GAME_DATA.players[color].character
   local rewardsDeck = getObjectFromGUID(OBJECTS.characterDecks[character].rewardsDeck)
+end
 
-
+function handleLoseHpEffect(arguments)
+  losePlayerHp(arguments.color, arguments.amount)
 end
 
 function handleEffect(arguments)
@@ -2152,6 +2309,14 @@ function handleEffect(arguments)
 
       if effect.type == EFFECT_TYPES.GAIN_CARD then
         handleGainCardEffect({ color = color })
+        return 1
+      end
+
+      if effect.type == EFFECT_TYPES.LOSE_HP then
+        handleLoseHpEffect({
+          color = color,
+          amount = amount
+        })
         return 1
       end
     end
@@ -2341,7 +2506,6 @@ function setupPlayerPlayZone(arguments)
     callback_function = function(zone)
       local bounds = zone.getBounds()
       local position = zone.getPosition()
-      myLog("Scripting play zone spawned for player("..color.."): "..zone.guid..".")
 
       playerBoard.UI.setAttribute("main", "active", "true")
     end
@@ -2371,11 +2535,42 @@ function prepareEnemyAfterSpawn(arguments)
     position = cardPosition,
     scale = { cardBounds.size.x, cardBounds.size.y + 0.3, cardBounds.size.z },
     callback_function = function(zone)
-      myLog("Spawned scripting zone for card: "..zone.guid..".")
       OBJECTS.combat.zoneToEnemy[zone.guid] = card.guid
       OBJECTS.combat.enemyToZone[card.guid] = zone.guid
     end
   })
+
+  self.setDecals({
+    {
+      name = "Enemy HP",
+      url = "http://cloud-3.steamusercontent.com/ugc/1945020522805785288/5D2DA9E8F63D1CF832B16B6E203DB06269625DDB/",
+      position = {
+        x = cardPosition.x - 1,
+        y = cardPosition.y,
+        z = cardPosition.z - 3.5
+      },
+      rotation = {
+        x = 90,
+        y = 0,
+        z = 0
+      },
+      scale = {1, 1, 1}
+    }
+  })
+  -- spawnObject({
+  --   type = "3DText",
+  --   position = {
+  --     x = cardPosition.x + 0.2,
+  --     y = cardPosition.y,
+  --     z = cardPosition.z - 4
+  --   },
+  --   scale = {0.2, 0.2, 0.2},
+  --   callback_function = function(textObject)
+  --     textObject.setValue(2)
+  --     textObject.setFontSize(15)
+  --     textObject.setFontColor("#ff4949")
+  --   end
+  -- })
 end
 
 function afterEnemySpawns(arguments)
@@ -2399,13 +2594,12 @@ function afterEnemySpawns(arguments)
     row = row,
     index = index,
     hp = stats.hp,
+    block = 0,
     effects = {}
   }
-  myLog("Insert enemy data.\n"..JSON.encode_pretty(GAME_DATA.combat.enemies[cardGuid]))
 end
 
 function handleSummon(arguments)
-  myLog("Start summoning all summons.")
   local act = GAME_DATA.act
   local summonQueue = GAME_DATA.combat.summonQueue
   local bagObject = getObjectFromGUID(OBJECTS.actDecksBag[act].base)
@@ -2418,7 +2612,6 @@ function handleSummon(arguments)
       z = bagPosition.z - 4,
     },
     callback_function = function(deck)
-      myLog("Take out summon deck summoning.")
       local deckCards = deck.getObjects()
       local nameGuidMap = {}
       for index, card in ipairs(deckCards) do
@@ -2453,7 +2646,7 @@ function handleSummon(arguments)
             deck.takeObject({
               guid = randomGuid,
               position = {
-                x = cardPosition.x + 5,
+                x = cardPosition.x + 7,
                 y = cardPosition.y,
                 z = cardPosition.z,
               },
@@ -2484,7 +2677,6 @@ function queueSummonFor(arguments)
   local cardGuid = arguments.cardGuid
   local row = arguments.row
   local index = arguments.index
-  myLog("Queue summon for: "..cardGuid..".")
   table.insert(GAME_DATA.combat.summonQueue, {
     cardGuid = cardGuid,
     row = row,
@@ -2495,11 +2687,7 @@ end
 function setTurn(arguments)
   local turn = arguments.turn
 
-  local turnChanges = GAME_DATA.combat.turn ~= turn
   GAME_DATA.combat.turn = turn
-  if turnChanges then
-    myLog("Change turn to "..turn..".")
-  end
 end
 
 function isCombatDone(arguments)
@@ -2633,7 +2821,6 @@ end
 
 function setCombatPhase(arguments)
   local phase = arguments.phase
-  myLog("Set combat phase: "..phase..".")
   GAME_DATA.combat.phase = phase
 end
 
@@ -2678,7 +2865,6 @@ function startCombatStartTurnPhase()
 end
 
 function startCombatPlayersTurn()
-  myLog("Start combat players turn.")
   setTurn({
     turn = TURN_TYPES.PLAYERS
   })
@@ -2686,7 +2872,6 @@ function startCombatPlayersTurn()
 end
 
 function startCombatLoop()
-  myLog("Start combat loop.")
   startCombatPlayersTurn()
 end
 
@@ -2733,7 +2918,6 @@ function setupEncounter(arguments)
               tag = cardTag,
               name = cardName
             })
-            myLog("Card in combat: "..cardName..".")
             GAME_DATA.combat.encountersSetup = GAME_DATA.combat.encountersSetup + 1
 
             if cardStats.summons ~= nil and #cardStats.summons > 0 then
@@ -2764,7 +2948,6 @@ function setupEncounter(arguments)
 end
 
 function setupFirstEncounter()
-  myLog("Start to setup first encounter.")
   local map = getObjectFromGUID(OBJECTS.actMaps[1])
   setupEncounter({
     bag = getObjectFromGUID(OBJECTS.firstEncounterBag),
@@ -2797,7 +2980,6 @@ function setupPlayerBoardZone(arguments)
     callback_function = function(zone)
       local bounds = zone.getBounds()
       local position = zone.getPosition()
-      myLog("Scripting board zone spawned for player("..color.."): "..zone.guid..".")
       OBJECTS.playerBoardScriptingZones[color] = zone.guid
     end
   })
@@ -2859,16 +3041,15 @@ function handleNeowEffects(effects, color)
       type = "ScriptingTrigger",
       position = {
         x = drawDeckPosition.x,
-        y = drawDeckPosition.y - 1.5,
+        y = drawDeckPosition.y - 2,
         z = drawDeckPosition.z
       },
       scale = {
         x = deckBounds.size.x,
-        y = deckBounds.size.y + 1.5,
+        y = 1,
         z = deckBounds.size.z,
       },
       callback_function = function(zone)
-        myLog("Spawned draw scripting zone: "..zone.guid..".")
         OBJECTS.playerDrawScriptingZones[color] = zone.guid
       end
     })
@@ -2876,16 +3057,15 @@ function handleNeowEffects(effects, color)
       type = "ScriptingTrigger",
       position = {
         x = discardDeckPosition.x,
-        y = discardDeckPosition.y - 1.5,
+        y = discardDeckPosition.y - 2,
         z = discardDeckPosition.z
       },
       scale = {
         x = deckBounds.size.x,
-        y = deckBounds.size.y + 1.5,
+        y = 1,
         z = deckBounds.size.z,
       },
       callback_function = function(zone)
-        myLog("Spawned discard scripting zone: "..zone.guid..".")
         OBJECTS.playerDiscardScriptingZones[color] = zone.guid
         OBJECTS.discardScriptingZoneToPlayer[zone.guid] = color
       end
@@ -2917,7 +3097,6 @@ function handleNeowFirstClick(neowCard, color)
   end
   local effects = NEOW_BLESSING_DATA[neowCard.guid][1].effects
   local effectsJSON = JSON.encode_pretty(effects)
-  myLog("Player("..color..") clicked 1st neow blessing option.\n"..effectsJSON)
   handleNeowEffects(effects, color)
 end
 
@@ -2927,7 +3106,6 @@ function handleNeowSecondClick(neowCard, color)
   end
   local effects = NEOW_BLESSING_DATA[neowCard.guid][2].effects
   local effectsJSON = JSON.encode_pretty(effects)
-  myLog("Player("..color..") clicked 2nd neow blessing option.\n"..effectsJSON)
   handleNeowEffects(effects, color)
 end
 
@@ -2937,7 +3115,6 @@ function handleNeowThirdClick(neowCard, color)
   end
   local effects = NEOW_BLESSING_DATA[neowCard.guid][3].effects
   local effectsJSON = JSON.encode_pretty(effects)
-  myLog("Player("..color..") clicked 3rd neow blessing option.\n"..effectsJSON)
   handleNeowEffects(effects, color)
 end
 
@@ -2952,6 +3129,7 @@ function setupPlayers(arguments)
       characterBoard.call("setupForPlayer", {
         color = color
       })
+      GAME_DATA.players[color].hp = CHARACTER_MAX_HP[character]
     end
 
     waitFrames(500)
@@ -2973,6 +3151,33 @@ function setupPlayers(arguments)
 
     local neowBlessingDeck = getObjectFromGUID(OBJECTS.neowBlessingDeck)
     neowBlessingDeck.shuffle()
+
+    if DEBUG_ONLY_LOSE_HP_NEOW then
+      local cards = neowBlessingDeck.getObjects()
+      for index, card in ipairs(cards) do
+        local buttons = NEOW_BLESSING_DATA[card.guid]
+        local doesLosehp = false
+        local buttonIndex = 1
+        while buttonIndex ~= 4 do
+          local button = buttons[buttonIndex]
+          for _, effect in ipairs(button.effects) do
+            if effect.type == EFFECT_TYPES.LOSE_HP then
+              doesLoseHp = true
+            end
+          end
+          buttonIndex = buttonIndex + 1
+        end
+        if not doesLoseHp then
+          neowBlessingDeck.takeObject({
+            guid = card.guid,
+            callback_function = function(cardObject)
+              cardObject.destruct()
+            end
+          })
+        end
+      end
+    end
+
     for index, color in ipairs(players) do
       setupPlayerDecks({
         color = color
@@ -2992,7 +3197,6 @@ function setupPlayers(arguments)
           z = boardPosition.z + 2
         },
         callback_function = function(object)
-          myLog("Gold bowl spawned for player("..color.."): "..object.guid..".")
           object.locked = true
           local bounds = object.getBounds()
           local position = object.getPosition()
@@ -3001,10 +3205,7 @@ function setupPlayers(arguments)
             scale = {
               bounds.size.x, bounds.size.y + 5, bounds.size.z
             },
-            position = position,
-            callback_function = function(scriptingZone)
-              myLog("Gold bowl scripting zone spawned for player("..color.."): "..scriptingZone.guid..".")
-            end
+            position = position
           })
           OBJECTS.playerGoldBowlScriptingZones[color] = zone.guid
         end
@@ -3227,14 +3428,16 @@ end
 
 function onObjectEnterZone(zone, object)
   local isCombat = GAME_DATA.combat.inProgress
-  if isCombat and object.name == "Card" and zone.name == "ScriptingTrigger" then
-    local enemyGuid = OBJECTS.combat.zoneToEnemy[zone.guid]
-    local playingCard = GAME_DATA.combat.playingCard
-    if enemyGuid ~= nil and playingCard ~= nil and playingCard.cardGuid == object.guid then
-      onPlayingCardTargetChosen({
-        type = TARGET_TYPES.ENEMY,
-        cardGuid = enemyGuid
-      })
+  if isCombat and object.name == "Card" then
+    if zone.name == "ScriptingTrigger" then
+      local enemyGuid = OBJECTS.combat.zoneToEnemy[zone.guid]
+      local playingCard = GAME_DATA.combat.playingCard
+      if enemyGuid ~= nil and playingCard ~= nil and playingCard.cardGuid == object.guid then
+        onPlayingCardTargetChosen({
+          type = TARGET_TYPES.ENEMY,
+          cardGuid = enemyGuid
+        })
+      end
     end
 
     local playerHandGuid = OBJECTS.handToPlayer[zone.guid]
@@ -3249,7 +3452,6 @@ function onObjectEnterZone(zone, object)
 end
 
 function startGame()
-  myLog("Starting game...")
   local allPlayers = {}
   for color, data in pairs(GAME_DATA.players) do
     if data.character ~= nil then
