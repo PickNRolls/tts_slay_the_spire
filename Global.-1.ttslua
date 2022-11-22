@@ -1,6 +1,7 @@
 DEBUG_ONLY_LOSE_HP_NEOW = false
 DEBUG_ONLY_UPGRADE_CARD_NEOW = false
-DEBUG_ONLY_GAIN_RELIC_NEOW = true
+DEBUG_ONLY_GAIN_RELIC_NEOW = false
+DEBUG_ONLY_GAIN_COLORLESS_NEOW = true
 
 CHARACTERS = {"Ironclad", "Silent", "Defect", "Watcher"}
 
@@ -200,6 +201,7 @@ OBJECTS = {
   block5Bag = "44889c",
   relicsDeck = "789dfc",
   curseDeck = "5e57a7",
+  colorlessDeck = "8049ab",
 
   actMaps = {
     "0b5712",
@@ -2551,6 +2553,26 @@ function prepareAreaForOptionalGain(arguments)
   })
 end
 
+function repeatPrepareAreaForOptionalGain(count, arguments)
+  local doneCount = 0
+  local originalOnDone = arguments.onDone
+
+  function onDone()
+    doneCount = doneCount + 1
+    if doneCount == count then
+      if originalOnDone ~= nil then
+        originalOnDone()
+      end
+      return
+    end
+
+    prepareAreaForOptionalGain(arguments)
+  end
+
+  arguments.onDone = onDone
+  prepareAreaForOptionalGain(arguments)
+end
+
 function handleGainGoldEffect(arguments)
   local amount = arguments.amount
   local color = arguments.color
@@ -2729,19 +2751,15 @@ end
 
 function handleGainRelicEffect(arguments)
   local color = arguments.color
-  local amount = arguments.amount
+  local amount = arguments.amount or 1
   local onDone = arguments.onDone
 
-  prepareAreaForOptionalGain({
+  repeatPrepareAreaForOptionalGain(amount, {
     color = color,
     deck = OBJECTS.relicsDeck,
-    amount = 2,
+    amount = 1,
     tag = TAG_TYPES.RELIC,
-    onDone = function()
-      if onDone ~= nil then
-        onDone()
-      end
-    end
+    onDone = onDone
   })
 end
 
@@ -2762,6 +2780,23 @@ function handleGainCurseEffect(arguments)
   if onDone ~= nil then
     onDone()
   end
+end
+
+function handleGainColorlessCardEffect(arguments)
+  local color = arguments.color
+  local amount = arguments.amount or 1
+  local onDone = arguments.onDone
+  local drawDeckPosition = getDrawDeckPosition({
+    color = color
+  })
+
+  repeatPrepareAreaForOptionalGain(amount, {
+    color = color,
+    deck = OBJECTS.colorlessDeck,
+    amount = 3,
+    tag = nil,
+    onDone = onDone
+  })
 end
 
 function handleEffect(arguments)
@@ -2829,6 +2864,15 @@ function handleEffect(arguments)
           amount = amount,
           onDone = onDone
         })
+      end
+
+      if effect.type == EFFECT_TYPES.GAIN_COLORLESS_CARD then
+        handleGainColorlessCardEffect({
+          color = color,
+          amount = amount,
+          onDone = onDone
+        })
+        return 1
       end
     end
 
@@ -3716,6 +3760,12 @@ function setupPlayers(arguments)
       })
     end
 
+    if DEBUG_ONLY_GAIN_COLORLESS_NEOW then
+      filterNeowDeck({
+        effectType = EFFECT_TYPES.GAIN_COLORLESS_CARD
+      })
+    end
+
     for index, color in ipairs(players) do
       setupPlayerDecks({
         color = color
@@ -3957,7 +4007,18 @@ function gainRelic(arguments)
   table.insert(GAME_DATA.players[color].relics, {
     name = relicName
   })
+end
 
+function gainCard(arguments)
+  local color = arguments.color
+  local guid = arguments.guid
+
+  local drawDeckPosition = getDrawDeckPosition({
+    color = color
+  })
+  local card = getObjectFromGUID(guid)
+  card.flip()
+  card.setPositionSmooth(drawDeckPosition)
 end
 
 function onOptionalGainRelic(arguments)
@@ -3965,6 +4026,22 @@ function onOptionalGainRelic(arguments)
   local guid = arguments.guid
 
   gainRelic({
+    guid = guid,
+    color = color
+  })
+  endOptionalGain({
+    color = color,
+    taken = {
+      [guid] = true
+    }
+  })
+end
+
+function onOptionalGainCard(arguments)
+  local color = arguments.color
+  local guid = arguments.guid
+
+  gainCard({
     guid = guid,
     color = color
   })
@@ -3986,6 +4063,15 @@ function onOptionalGainPickUp(arguments)
       color = color,
       guid = guid
     })
+    return
+  end
+
+  if gainData.tag == nil then
+    onOptionalGainCard({
+      color = color,
+      guid = guid
+    })
+    return
   end
 end
 
@@ -4034,10 +4120,22 @@ function onObjectDrop(color, object)
   local tag = object.getTags()[1]
 
   if isCombat and object.name == "Card" and tag == nil then
-    onPlayerDropsCard({
-      color = color,
-      card = object
-    })
+    local guid = object.guid
+    local handZone = getObjectFromGUID(OBJECTS.playerHands[color])
+    local handZoneObjects = handZone.getObjects()
+    local isInHand = false
+    for _, handObject in ipairs(handZoneObjects) do
+      if object.guid == handObject.guid then
+        isInHand = true
+        break
+      end
+    end
+    if not isInHand then
+      onPlayerDropsCard({
+        color = color,
+        card = object
+      })
+    end
   end
 end
 
@@ -4078,6 +4176,8 @@ function startGame()
 
   local relicsDeck = getObjectFromGUID(OBJECTS.relicsDeck)
   relicsDeck.shuffle()
+  local colorlessDeck = getObjectFromGUID(OBJECTS.colorlessDeck)
+  colorlessDeck.shuffle()
 
   setupAct({
     act = GAME_DATA.act
