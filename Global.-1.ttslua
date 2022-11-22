@@ -72,24 +72,28 @@ GAME_DATA = {
       neowBonusDone = false,
       hp = 0,
       optionalGainInProgress = nil,
+      relics = {},
     },
     Green = {
       neowBonusStarted = false,
       neowBonusDone = false,
       hp = 0,
       optionalGainInProgress = nil,
+      relics = {},
     },
     Blue = {
       neowBonusStarted = false,
       neowBonusDone = false,
       hp = 0,
       optionalGainInProgress = nil,
+      relics = {},
     },
     Pink = {
       neowBonusStarted = false,
       neowBonusDone = false,
       hp = 0,
       optionalGainInProgress = nil,
+      relics = {},
     }
   }
 }
@@ -1818,6 +1822,32 @@ function getDecksPosition(arguments)
   }
 end
 
+function getRelicsGridPosition(arguments)
+  local color = arguments.color
+  local decksPosition = getDecksPosition({
+    color = color
+  })
+
+  return {
+    x = decksPosition.x,
+    y = decksPosition.y,
+    z = decksPosition.z + 20
+  }
+end
+
+function getRelicsGridOffsetForNewRelic(arguments)
+  local color = arguments.color
+  local relicsCount = #GAME_DATA.players[color].relics
+  local rowIndex = math.floor(relicsCount / 8)
+  local columnIndex = relicsCount % 8
+
+  return {
+    x = columnIndex * 3,
+    y = 0,
+    z = -rowIndex * 3.3
+  }
+end
+
 function getDrawDeckPosition(arguments)
   local decksPosition = getDecksPosition({
     color = arguments.color
@@ -2349,13 +2379,9 @@ function getPositionForMap(arguments)
   }
 end
 
-function handleSkipOptionalGainClick(arguments)
+function endOptionalGain(arguments)
   local color = arguments.color
-  local colorClicks = arguments.colorClicks
-
-  if colorClicks ~= color then
-    return
-  end
+  local taken = arguments.taken
 
   local tableObject = Tables.getTableObject()
   local buttons = tableObject.getButtons()
@@ -2369,14 +2395,30 @@ function handleSkipOptionalGainClick(arguments)
   local objectGuids = GAME_DATA.players[color].optionalGainInProgress.objects
   local deck = getObjectFromGUID(GAME_DATA.players[color].optionalGainInProgress.deck)
   for index, guid in ipairs(objectGuids) do
-    local object = getObjectFromGUID(guid)
-    deck.putObject(object)
+    if not taken[guid] then
+      local object = getObjectFromGUID(guid)
+      deck.putObject(object)
+    end
   end
   local doneCallbacks = GAME_DATA.players[color].optionalGainInProgress.onDone
   GAME_DATA.players[color].optionalGainInProgress = nil
   for _, callback in ipairs(doneCallbacks) do
     callback()
   end
+end
+
+function handleSkipOptionalGainClick(arguments)
+  local color = arguments.color
+  local colorClicks = arguments.colorClicks
+
+  if colorClicks ~= color then
+    return
+  end
+
+  endOptionalGain({
+    color = color,
+    taken = {}
+  })
 end
 
 function handleSkipOptionalGainClickRed(_, clickColor)
@@ -3895,13 +3937,43 @@ function setupAct(arguments)
   startLuaCoroutine(self, "setupActCoroutine")
 end
 
+function gainRelic(arguments)
+  local color = arguments.color
+  local guid = arguments.guid
+
+  local relicsGridPosition = getRelicsGridPosition({
+    color = color
+  })
+  local offset = getRelicsGridOffsetForNewRelic({
+    color = color
+  })
+  local relicObject = getObjectFromGUID(guid)
+  relicObject.setPositionSmooth({
+    x = relicsGridPosition.x + offset.x,
+    y = relicsGridPosition.y + offset.y,
+    z = relicsGridPosition.z + offset.z
+  })
+  local relicName = relicObject.getName()
+  table.insert(GAME_DATA.players[color].relics, {
+    name = relicName
+  })
+
+end
+
 function onOptionalGainRelic(arguments)
   local color = arguments.color
   local guid = arguments.guid
-  local card = getObjectFromGUID(guid)
-  local name = card.getName()
 
-  myLog(color.." picks "..name)
+  gainRelic({
+    guid = guid,
+    color = color
+  })
+  endOptionalGain({
+    color = color,
+    taken = {
+      [guid] = true
+    }
+  })
 end
 
 function onOptionalGainPickUp(arguments)
@@ -3959,8 +4031,9 @@ end
 
 function onObjectDrop(color, object)
   local isCombat = GAME_DATA.combat.inProgress
+  local tag = object.getTags()[1]
 
-  if isCombat and object.name == "Card" then
+  if isCombat and object.name == "Card" and tag == nil then
     onPlayerDropsCard({
       color = color,
       card = object
@@ -4002,6 +4075,10 @@ function startGame()
   end
   local startMenu = getObjectFromGUID(OBJECTS.startMenu)
   startMenu.destruct()
+
+  local relicsDeck = getObjectFromGUID(OBJECTS.relicsDeck)
+  relicsDeck.shuffle()
+
   setupAct({
     act = GAME_DATA.act
   })
