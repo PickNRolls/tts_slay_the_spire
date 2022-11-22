@@ -82,18 +82,23 @@ function setupForPlayer(arguments)
   startLuaCoroutine(self, "setupCoroutine")
 end
 
+function setEnergy(arguments)
+  local amount = arguments.amount
+
+  Global.call("setEnergyForPlayerBoard", {
+    character = "Defect",
+    energyToken = OBJECTS.energyToken,
+    amount = amount
+  })
+end
+
 function setBlock(arguments)
   local amount = arguments.amount
-  local blockToken = getObjectFromGUID(OBJECTS.blockToken)
-  local GLOBAL_OBJECTS = Global.getTable("OBJECTS")
-  local characterBoard = getObjectFromGUID(GLOBAL_OBJECTS.characterBoards.Defect)
-  local boardPosition = characterBoard.getPosition()
-  local boardBounds = characterBoard.getBounds()
 
-  blockToken.setPositionSmooth({
-    x = boardPosition.x - 6.23 + 0.72 * amount,
-    y = boardPosition.y + 1,
-    z = boardPosition.z + boardBounds.size.z / 2 + -3.6,
+  Global.call("setBlockForPlayerBoard", {
+    character = "Defect",
+    blockToken = OBJECTS.blockToken,
+    amount = amount
   })
 end
 

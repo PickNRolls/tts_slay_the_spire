@@ -22,6 +22,8 @@ CHARACTER_MAX_HP = {
   [CHARACTERS[4]] = 9,
 }
 
+BOARD_BLOCK_OFFSET = 0.72
+BOARD_ENERGY_OFFSET = 0.72
 BOARD_HP_OFFSET = 0.927
 BOARD_LEFT_OFFSET = 0.92
 
@@ -1981,16 +1983,55 @@ function finishResolvingCard(arguments)
   startLuaCoroutine(self, "finishResolvingCardCoroutine")
 end
 
+function setEnergyForPlayerBoard(arguments)
+
+end
+
 function getEnergyForPlayer(color)
   return GAME_DATA.combat.players[color].energy
 end
 
+function setEnergyForPlayerBoard(arguments)
+  local amount = arguments.amount
+  local energyToken = getObjectFromGUID(arguments.energyToken)
+  local character = arguments.character
+  local characterBoard = getObjectFromGUID(OBJECTS.characterBoards[character])
+  local boardPosition = characterBoard.getPosition()
+  local boardBounds = characterBoard.getBounds()
+
+  energyToken.setPositionSmooth({
+    x = boardPosition.x - 6.23 + BOARD_ENERGY_OFFSET * amount,
+    y = boardPosition.y + 1,
+    z = boardPosition.z + boardBounds.size.z / 2 + -1.4,
+  })
+end
+
 function setEnergyForPlayer(color, energy)
+  local character = GAME_DATA.players[color].character
+  local board = getObjectFromGUID(OBJECTS.characterBoards[character])
+  board.call("setEnergy", {
+    amount = energy
+  })
   GAME_DATA.combat.players[color].energy = energy
 end
 
 function getBlockForPlayer(color)
   return GAME_DATA.combat.players[color].block
+end
+
+function setBlockForPlayerBoard(arguments)
+  local amount = arguments.amount
+  local blockToken = getObjectFromGUID(arguments.blockToken)
+  local character = arguments.character
+  local characterBoard = getObjectFromGUID(OBJECTS.characterBoards[character])
+  local boardPosition = characterBoard.getPosition()
+  local boardBounds = characterBoard.getBounds()
+
+  blockToken.setPositionSmooth({
+    x = boardPosition.x - 6.23 + BOARD_BLOCK_OFFSET * amount,
+    y = boardPosition.y + 1,
+    z = boardPosition.z + boardBounds.size.z / 2 + -3.6,
+  })
 end
 
 function setBlockForPlayer(color, block)
@@ -2217,6 +2258,19 @@ function resolveCardSilentNeutralize(arguments)
 end
 
 function resolveCardSilentSurvivor(arguments)
+  local color = arguments.color
+  local cardGuid = arguments.cardGuid
+
+  resolveCardActionBlock({
+    color = color,
+    cardGuid = cardGuid,
+    target = {
+      type = TARGET_TYPES.PLAYER,
+      color = color,
+    },
+    amount = 2
+  })
+
   finishResolvingCard(arguments)
 end
 
