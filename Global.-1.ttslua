@@ -1,4 +1,6 @@
-DEBUG_ONLY_LOSE_HP_NEOW = true
+DEBUG_ONLY_LOSE_HP_NEOW = false
+DEBUG_ONLY_UPGRADE_CARD_NEOW = false
+DEBUG_ONLY_GAIN_RELIC_NEOW = true
 
 CHARACTERS = {"Ironclad", "Silent", "Defect", "Watcher"}
 
@@ -64,20 +66,28 @@ GAME_DATA = {
   },
   players = {
     Red = {
+      neowBonusStarted = false,
       neowBonusDone = false,
       hp = 0,
+      optionalGainInProgress = nil,
     },
     Green = {
+      neowBonusStarted = false,
       neowBonusDone = false,
       hp = 0,
+      optionalGainInProgress = nil,
     },
     Blue = {
+      neowBonusStarted = false,
       neowBonusDone = false,
       hp = 0,
+      optionalGainInProgress = nil,
     },
     Pink = {
+      neowBonusStarted = false,
       neowBonusDone = false,
       hp = 0,
+      optionalGainInProgress = nil,
     }
   }
 }
@@ -182,6 +192,8 @@ OBJECTS = {
   weakBag = "a0b349",
   blockBag = "ffeff0",
   block5Bag = "44889c",
+  relicsDeck = "789dfc",
+  curseDeck = "5e57a7",
 
   actMaps = {
     "0b5712",
@@ -229,7 +241,7 @@ EFFECT_TYPES = {
   GAIN_RANDOM_RARE_CARD = "gain random rare card",
   GAIN_COLORLESS_CARD = "gain colorless card",
   GAIN_RANDOM_COLORLESS_CARD = "gain random colorless card",
-  GAIN_TREASURE = "gain treasure",
+  GAIN_RELIC = "gain relic",
   UPGRADE_CARD = "upgrade card",
   UPGRADE_RANDOM_CARD = "upgrade random card",
   TRANSFORM_CARD = "transform card",
@@ -248,7 +260,8 @@ TAG_TYPES = {
   ENCOUNTER = "Encounter",
   SUMMON = "Summon",
   ELITE = "Elite",
-  BOSS = "Boss"
+  BOSS = "Boss",
+  RELIC = "Relic"
 }
 
 ACTION_TYPES = {
@@ -262,6 +275,10 @@ ACTION_TYPES = {
 
 COMBAT_EFFECT_TYPES = {
   WEAK = "Weak"
+}
+
+COMBAT_EFFECT_TO_DECAL_URL = {
+  [COMBAT_EFFECT_TYPES.WEAK] = "http://cloud-3.steamusercontent.com/ugc/1857175596587634426/109E0B1D8C193B75B18113CF0387D3E44D1FEF2B/"
 }
 
 REWARD_TYPES = {
@@ -1365,7 +1382,7 @@ local NEOW_BLESSING_DATA = {
       {
         effects = {
           {
-            type = EFFECT_TYPES.GAIN_TREASURE,
+            type = EFFECT_TYPES.GAIN_RELIC,
           },
           {
             type = EFFECT_TYPES.LOSE_HP,
@@ -1534,7 +1551,7 @@ local NEOW_BLESSING_DATA = {
       {
         effects = {
           {
-            type = EFFECT_TYPES.GAIN_TREASURE
+            type = EFFECT_TYPES.GAIN_RELIC
           },
           {
             type = EFFECT_TYPES.LOSE_HP,
@@ -1697,7 +1714,7 @@ local NEOW_BLESSING_DATA = {
       {
         effects = {
           {
-            type = EFFECT_TYPES.GAIN_TREASURE
+            type = EFFECT_TYPES.GAIN_RELIC
           },
           {
             type = EFFECT_TYPES.GAIN_CURSE
@@ -1755,7 +1772,7 @@ local NEOW_BLESSING_DATA = {
       {
         effects = {
           {
-            type = EFFECT_TYPES.GAIN_TREASURE,
+            type = EFFECT_TYPES.GAIN_RELIC,
           },
           {
             type = EFFECT_TYPES.LOSE_GOLD,
@@ -1780,6 +1797,9 @@ function myLog(text)
   log("---------------------------")
 end
 
+function noopFunction()
+
+end
 
 function getDecksPosition(arguments)
   local color = arguments.color
@@ -1818,6 +1838,122 @@ function getDiscardDeckPosition(arguments)
     y = drawPosition.y,
     z = drawPosition.z
   }
+end
+
+function addHpMeterForEnemy(arguments)
+  local guid = arguments.guid
+  local card = getObjectFromGUID(guid)
+  local name = card.getName()
+  local cardPosition = card.getPosition()
+
+  self.addDecal({
+    name = guid,
+    url = "http://cloud-3.steamusercontent.com/ugc/1945020522805785288/5D2DA9E8F63D1CF832B16B6E203DB06269625DDB/",
+    position = {
+      x = cardPosition.x - 0.4,
+      y = cardPosition.y,
+      z = cardPosition.z - 2.85
+    },
+    rotation = {
+      x = 90,
+      y = 0,
+      z = 0
+    },
+    scale = {1, 1, 1}
+  })
+
+  local act = GAME_DATA.act
+  local enemyStats = getEnemyStats({
+    act = act,
+    name = name,
+    tag = card.getTags()[1]
+  })
+  card.createButton({
+    click_function = "hp",
+    label = tostring(enemyStats.hp),
+    position = card.positionToLocal({
+      x = cardPosition.x - 0.3,
+      y = cardPosition.y,
+      z = cardPosition.z - 2.85
+    }),
+    height = 0,
+    width = 0,
+    font_color = {
+      r = 232/255,
+      g = 101/255,
+      b = 118/255
+    },
+    font_size = 130
+  })
+end
+
+function removeHpMeterForEnemy(arguments)
+  local guid = arguments.guid
+  local decals = self.getDecals()
+  for index, decal in ipairs(decals) do
+    if decal.name == guid then
+      table.remove(decals, index)
+      break
+    end
+  end
+
+  self.setDecals(decals)
+end
+
+function removeEffectsForEnemy(arguments)
+
+end
+
+function setEffectMetersForEnemy(arguments)
+  local guid = arguments.guid
+  local effects = arguments.effects
+  local card = getObjectFromGUID(guid)
+  local cardPosition = card.getPosition()
+  local cardBounds = card.getBounds()
+
+  local decals = {}
+  local buttons = card.getButtons()
+  for index, effect in ipairs(effects) do
+    decals[index] = {
+      name = effect.type,
+      url = COMBAT_EFFECT_TO_DECAL_URL[effect.type],
+      position = card.positionToLocal({
+        x = cardPosition.x + 2.3,
+        y = cardPosition.y,
+        z = cardPosition.z + cardBounds.size.z / 2 - 0.5 - 1 * (index - 1)
+      }),
+      rotation = {
+        x = 90,
+        y = 0,
+        z = 180
+      },
+      scale = {0.7, 0.7, 1}
+    }
+    for _, button in ipairs(buttons) do
+      if button.click_function == effect.type then
+        card.removeButton(button.index)
+        break
+      end
+    end
+    card.createButton({
+      click_function = effect.type,
+      label = tostring(effect.amount),
+      position = {
+        x = 1.8,
+        y = 1,
+        z = -cardBounds.size.z / 2 + 1.34 + 0.624 * (index - 1)
+      },
+      height = 0,
+      width = 0,
+      font_color = {
+        r = 1,
+        g = 1,
+        b = 1
+      },
+      font_size = 130
+    })
+  end
+  card.setDecals(decals)
 end
 
 function finishResolvingCard(arguments)
@@ -1939,7 +2075,12 @@ function killEnemy(arguments)
   local zone = getObjectFromGUID(OBJECTS.combat.enemyToZone[guid])
   myLog("Enemy is killed: "..enemy.name..".")
   local card = getObjectFromGUID(guid)
-  card.UI.setAttribute("effects", "active", "false")
+  removeEffectsForEnemy({
+    guid = guid
+  })
+  removeHpMeterForEnemy({
+    guid = guid
+  })
   zone.destruct()
   card.flip()
 end
@@ -1956,6 +2097,16 @@ function resolveCardActionDamage(arguments)
   logString = logString.."New hp: "..newHp.."."
   myLog(logString)
   GAME_DATA.combat.enemies[enemyGuid].hp = newHp
+  local card = getObjectFromGUID(enemyGuid)
+  local buttons = card.getButtons()
+  for _, button in ipairs(buttons) do
+    if button.click_function == "hp" then
+      card.editButton({
+        index = button.index,
+        label = tostring(newHp)
+      })
+    end
+  end
   if newHp <= 0 then
     killEnemy({
       guid = enemyGuid
@@ -1970,26 +2121,24 @@ function resolveCardActionWeak(arguments)
   local enemyData = GAME_DATA.combat.enemies[enemyGuid]
 
   myLog("Weak enemy \""..enemyData.name.."\".")
-  table.insert(GAME_DATA.combat.enemies[enemyGuid].effects, COMBAT_EFFECT_TYPES.WEAK)
-  local card = getObjectFromGUID(enemyGuid)
-  local cardPosition = card.getPosition()
-  local cardBounds = card.getBounds()
-  local weakBag = getObjectFromGUID(OBJECTS.weakBag)
-  weakBag.takeObject({
-    position = {
-      x = cardPosition.x - 0.6,
-      y = cardPosition.y + cardBounds.size.y,
-      z = cardPosition.z + cardBounds.size.z / 2
-    },
-    callback_function = function(weakToken)
-      weakToken.interactable = false
-      weakToken.jointTo(card, {
-        type = "Fixed",
-        collision = true,
-        break_force = 1000.0,
-        break_torgue = 1000.0,
-      })
+  local hasWeakIndex = -1
+  for index, effect in ipairs(enemyData.effects) do
+    if effect.type == COMBAT_EFFECT_TYPES.WEAK then
+      hasWeakIndex = index
     end
+  end
+  if hasWeakIndex ~= -1 then
+    enemyData.effects[hasWeakIndex].amount = enemyData.effects[hasWeakIndex].amount + 1
+  else
+    table.insert(enemyData.effects, {
+      type = COMBAT_EFFECT_TYPES.WEAK,
+      amount = 1
+    })
+  end
+
+  setEffectMetersForEnemy({
+    guid = enemyGuid,
+    effects = enemyData.effects
   })
 end
 
@@ -2003,8 +2152,6 @@ function resolveCardActionHit(arguments)
     target = target,
     amount = power,
   })
-
-  addBlockForEnemy(target.guid, 1)
 end
 
 function resolveCardStrike(arguments)
@@ -2148,9 +2295,170 @@ function getPositionForMap(arguments)
   }
 end
 
+function handleSkipOptionalGainClick(arguments)
+  local color = arguments.color
+  local colorClicks = arguments.colorClicks
+
+  if colorClicks ~= color then
+    return
+  end
+
+  local tableObject = Tables.getTableObject()
+  local buttons = tableObject.getButtons()
+  for _, button in ipairs(buttons) do
+    if button.click_function == "handleSkipOptionalGainClick"..color then
+      tableObject.removeButton(button.index)
+      break
+    end
+  end
+
+  local objectGuids = GAME_DATA.players[color].optionalGainInProgress.objects
+  local deck = getObjectFromGUID(GAME_DATA.players[color].optionalGainInProgress.deck)
+  for index, guid in ipairs(objectGuids) do
+    local object = getObjectFromGUID(guid)
+    deck.putObject(object)
+  end
+  local doneCallbacks = GAME_DATA.players[color].optionalGainInProgress.onDone
+  GAME_DATA.players[color].optionalGainInProgress = nil
+  for _, callback in ipairs(doneCallbacks) do
+    callback()
+  end
+end
+
+function handleSkipOptionalGainClickRed(_, clickColor)
+  handleSkipOptionalGainClick({
+    color = "Red",
+    colorClicks = clickColor
+  })
+end
+
+function handleSkipOptionalGainClickGreen(_, clickColor)
+  handleSkipOptionalGainClick({
+    color = "Green",
+    colorClicks = clickColor
+  })
+end
+
+function handleSkipOptionalGainClickBlue(_, clickColor)
+  handleSkipOptionalGainClick({
+    color = "Blue",
+    colorClicks = clickColor
+  })
+end
+
+function handleSkipOptionalGainClickPink(_, clickColor)
+  handleSkipOptionalGainClick({
+    color = "Pink",
+    colorClicks = clickColor
+  })
+end
+
+function prepareAreaForOptionalGain(arguments)
+  local color = arguments.color
+  local deck = getObjectFromGUID(arguments.deck)
+  local tag = arguments.tag
+  local amount = arguments.amount or 1
+  local onDone = arguments.onDone
+
+  if GAME_DATA.players[color].optionalGainInProgress ~= nil then
+    return
+  end
+  GAME_DATA.players[color].optionalGainInProgress = {
+    deck = arguments.deck,
+    amount = amount,
+    tag = tag,
+    objects = {},
+    onDone = {onDone}
+  }
+
+  local board = getObjectFromGUID(OBJECTS.characterBoards[GAME_DATA.players[color].character])
+  local boardPosition = board.getPosition()
+  local drawPosition = getDrawDeckPosition({
+    color = color
+  })
+  local areaBounds = {
+    x = 12,
+    y = 0.3,
+    z = 3.3
+  }
+  local areaPosition = {
+    x = boardPosition.x,
+    y = boardPosition.y,
+    z = drawPosition.z - 4
+  }
+
+  if amount == 1 then
+    table.insert(GAME_DATA.players[color].optionalGainInProgress.objects, deck.takeObject({
+      position = areaPosition,
+      flip = true
+    }).guid)
+  elseif amount == 2 then
+    table.insert(GAME_DATA.players[color].optionalGainInProgress.objects, deck.takeObject({
+      position = {
+        x = areaPosition.x - 2,
+        y = areaPosition.y,
+        z = areaPosition.z
+      },
+      flip = true
+    }).guid)
+    table.insert(GAME_DATA.players[color].optionalGainInProgress.objects, deck.takeObject({
+      position = {
+        x = areaPosition.x + 2,
+        y = areaPosition.y,
+        z = areaPosition.z
+      },
+      flip = true
+    }).guid)
+  elseif amount == 3 then
+    table.insert(GAME_DATA.players[color].optionalGainInProgress.objects, deck.takeObject({
+      position = {
+        x = areaPosition.x - 4,
+        y = areaPosition.y,
+        z = areaPosition.z
+      },
+      flip = true
+    }).guid)
+    table.insert(GAME_DATA.players[color].optionalGainInProgress.objects, deck.takeObject({
+      position = {
+        x = areaPosition.x,
+        y = areaPosition.y,
+        z = areaPosition.z
+      },
+      flip = true
+    }).guid)
+    table.insert(GAME_DATA.players[color].optionalGainInProgress.objects, deck.takeObject({
+      position = {
+        x = areaPosition.x + 4,
+        y = areaPosition.y,
+        z = areaPosition.z
+      },
+      flip = true
+    }).guid)
+  end
+
+  local tableObject = Tables.getTableObject()
+  local clickFunction = "handleSkipOptionalGainClick"..color
+  tableObject.createButton({
+    click_function = clickFunction,
+    function_owner = self,
+    label = "Skip",
+    position = tableObject.positionToLocal({
+      x = -areaPosition.x,
+      y = areaPosition.y,
+      z = areaPosition.z - 2.5,
+    }),
+    rotation = { 0, 180, 0 },
+    width = 300,
+    height = 100,
+    font_size = 100,
+    scale = { 1, 1, 1 }
+  })
+end
+
 function handleGainGoldEffect(arguments)
   local amount = arguments.amount
   local color = arguments.color
+  local onDone = arguments.onDone
 
   local goldBag1 = getObjectFromGUID(OBJECTS.goldBag1)
   local goldBag5 = getObjectFromGUID(OBJECTS.goldBag5)
@@ -2175,9 +2483,15 @@ function handleGainGoldEffect(arguments)
         index = index + 1
         waitFrames(2)
       end
+      if onDone ~= nil then
+        onDone()
+      end
       return
     end
     print("Out of Gold. Can't gain any more.")
+    if onDone ~= nil then
+      onDone()
+    end
     return
   end
 
@@ -2194,6 +2508,9 @@ function handleGainGoldEffect(arguments)
   end
 
   if amount == 0 then
+    if onDone ~= nil then
+      onDone()
+    end
     return
   end
 
@@ -2212,6 +2529,9 @@ function handleGainGoldEffect(arguments)
 
   if amount ~= 0 then
     print("Out of Gold. Can't gain any more.")
+  end
+  if onDone ~= nil then
+    onDone()
   end
 end
 
@@ -2236,6 +2556,7 @@ end
 function handleLoseGoldEffect(arguments)
   local color = arguments.color
   local amount = arguments.amount
+  local onDone = arguments.onDone
   local bowlZone = getObjectFromGUID(OBJECTS.playerGoldBowlScriptingZones[color])
   local objects = bowlZone.getObjects()
   local playerGold = calculatePlayerGold({
@@ -2269,6 +2590,9 @@ function handleLoseGoldEffect(arguments)
     amount = amount - 1
     gold1CoinsLost = gold1CoinsLost + 1
   end
+  if onDone ~= nil then
+    onDone()
+  end
 end
 
 function handleGainCardEffect(arguments)
@@ -2279,12 +2603,76 @@ end
 
 function handleLoseHpEffect(arguments)
   losePlayerHp(arguments.color, arguments.amount)
+  if arguments.onDone ~= nil then
+    arguments.onDone()
+  end
+end
+
+function handleUpgradeCardEffect(arguments)
+  local color = arguments.color
+  local amount = arguments.amount
+  local onDone = arguments.onDone
+
+  if onDone ~= nil then
+    onDone()
+  end
+end
+
+function getRelicsPosition(arguments)
+  local color = arguments.color
+  local character = GAME_DATA.players[color].character
+  local characterBoard = getObjectFromGUID(OBJECTS.characterBoards[character])
+  local boardBounds = characterBoard.getBounds()
+  local boardPosition = characterBoard.getPosition()
+  return {
+    x = boardPosition.x - boardBounds.size.x / 2,
+    y = boardPosition.y + boardBounds.size.y / 2,
+    z = boardPosition.z + boardBounds.size.z / 2
+  }
+end
+
+function handleGainRelicEffect(arguments)
+  local color = arguments.color
+  local amount = arguments.amount
+  local onDone = arguments.onDone
+
+  prepareAreaForOptionalGain({
+    color = color,
+    deck = OBJECTS.relicsDeck,
+    amount = 2,
+    tag = TAG_TYPES.RELIC,
+    onDone = function()
+      if onDone ~= nil then
+        onDone()
+      end
+    end
+  })
+end
+
+function handleGainCurseEffect(arguments)
+  local color = arguments.color
+  local amount = arguments.amount or 1
+  local onDone = arguments.onDone
+  local curseDeck = getObjectFromGUID(OBJECTS.curseDeck)
+  local drawDeckPosition = getDrawDeckPosition({
+    color = color
+  })
+
+  curseDeck.shuffle()
+  curseDeck.takeObject({
+    position = drawDeckPosition,
+  })
+
+  if onDone ~= nil then
+    onDone()
+  end
 end
 
 function handleEffect(arguments)
   function handleEffectCoroutine()
     local effect = arguments.effect
     local target = arguments.target
+    local onDone = arguments.onDone
 
     if target.type == TARGET_TYPES.PLAYER then
       if target.payload == nil or target.payload.color == nil then
@@ -2298,26 +2686,53 @@ function handleEffect(arguments)
       end
 
       if effect.type == EFFECT_TYPES.GAIN_GOLD then
-        handleGainGoldEffect({ amount = amount, color = color })
+        handleGainGoldEffect({ amount = amount, color = color, onDone = onDone })
         return 1
       end
 
       if effect.type == EFFECT_TYPES.LOSE_GOLD then
-        handleLoseGoldEffect({ amount = amount, color = color })
+        handleLoseGoldEffect({ amount = amount, color = color, onDone = onDone })
         return 1
       end
 
       if effect.type == EFFECT_TYPES.GAIN_CARD then
-        handleGainCardEffect({ color = color })
+        handleGainCardEffect({ color = color, onDone = onDone })
         return 1
       end
 
       if effect.type == EFFECT_TYPES.LOSE_HP then
         handleLoseHpEffect({
           color = color,
-          amount = amount
+          amount = amount,
+          onDone = onDone
         })
         return 1
+      end
+
+      if effect.type == EFFECT_TYPES.UPGRADE_CARD then
+        handleUpgradeCardEffect({
+          color = color,
+          amount = amount,
+          onDone = onDone
+        })
+        return 1
+      end
+
+      if effect.type == EFFECT_TYPES.GAIN_RELIC then
+        handleGainRelicEffect({
+          color = color,
+          amount = amount,
+          onDone = onDone
+        })
+        return 1
+      end
+
+      if effect.type == EFFECT_TYPES.GAIN_CURSE then
+        handleGainCurseEffect({
+          color = color,
+          amount = amount,
+          onDone = onDone
+        })
       end
     end
 
@@ -2338,7 +2753,7 @@ function onLoad()
     handZone.setPosition({
       x = -60 + 24 * index,
       y = 3.29337835,
-      z = -34.42515,
+      z = -43.42515,
     })
     handZone.setRotation({
       x = 0,
@@ -2526,7 +2941,7 @@ end
 
 function prepareEnemyAfterSpawn(arguments)
   local card = getObjectFromGUID(arguments.cardGuid)
-  card.scale(1.7)
+  card.scale(1.4)
   card.interactable = false
   local cardBounds = card.getBounds()
   local cardPosition = card.getPosition()
@@ -2540,22 +2955,8 @@ function prepareEnemyAfterSpawn(arguments)
     end
   })
 
-  self.setDecals({
-    {
-      name = "Enemy HP",
-      url = "http://cloud-3.steamusercontent.com/ugc/1945020522805785288/5D2DA9E8F63D1CF832B16B6E203DB06269625DDB/",
-      position = {
-        x = cardPosition.x - 1,
-        y = cardPosition.y,
-        z = cardPosition.z - 3.5
-      },
-      rotation = {
-        x = 90,
-        y = 0,
-        z = 0
-      },
-      scale = {1, 1, 1}
-    }
+  addHpMeterForEnemy({
+    guid = card.guid
   })
   -- spawnObject({
   --   type = "3DText",
@@ -2646,7 +3047,7 @@ function handleSummon(arguments)
             deck.takeObject({
               guid = randomGuid,
               position = {
-                x = cardPosition.x + 7,
+                x = cardPosition.x + 5.8,
                 y = cardPosition.y,
                 z = cardPosition.z,
               },
@@ -2883,6 +3284,12 @@ function setupEncounter(arguments)
   local mapBounds = map.getBounds()
 
   GAME_DATA.combat.inProgress = true
+  local playingColors = getPlayingColors()
+  for index, color in ipairs(playingColors) do
+    local zone = getObjectFromGUID(OBJECTS.playerDrawScriptingZones[color])
+    local deck = zone.getObjects()[1]
+    deck.shuffle()
+  end
 
   bag.takeObject({
     index = 0,
@@ -2908,7 +3315,7 @@ function setupEncounter(arguments)
           position = {
             x = characterPositions[index].x + 4,
             y = characterPositions[index].y,
-            z = characterPositions[index].z
+            z = characterPositions[index].z + 0.7
           },
           callback_function = function(card)
             local cardName = card.getName()
@@ -2948,12 +3355,17 @@ function setupEncounter(arguments)
 end
 
 function setupFirstEncounter()
-  local map = getObjectFromGUID(OBJECTS.actMaps[1])
-  setupEncounter({
-    bag = getObjectFromGUID(OBJECTS.firstEncounterBag),
-    map = map,
-    act = "First Encounter"
-  })
+  function setupFirstEncounterCoroutine()
+    waitFrames(400)
+    local map = getObjectFromGUID(OBJECTS.actMaps[1])
+    setupEncounter({
+      bag = getObjectFromGUID(OBJECTS.firstEncounterBag),
+      map = map,
+      act = "First Encounter"
+    })
+    return 1
+  end
+  startLuaCoroutine(self, "setupFirstEncounterCoroutine")
 end
 
 function startFirstEncounter()
@@ -2987,10 +3399,11 @@ end
 
 function handleNeowEffects(effects, color)
   function handleNeowEffectsCoroutine()
-    if GAME_DATA.players[color].neowBonusDone then
+    if GAME_DATA.players[color].neowBonusStarted or GAME_DATA.players[color].neowBonusDone then
       return 1
     end
-    GAME_DATA.players[color].neowBonusDone = true
+    GAME_DATA.players[color].neowBonusStarted = true
+    local effectsDone = 0
     for index, effect in ipairs(effects) do
       handleEffect({
         effect = effect,
@@ -2999,7 +3412,87 @@ function handleNeowEffects(effects, color)
           payload = {
             color = color
           }
-        }
+        },
+        onDone = function()
+          effectsDone = effectsDone + 1
+          if effectsDone ~= #effects then
+            return
+          end
+          GAME_DATA.players[color].neowBonusDone = true
+
+          local character = GAME_DATA.players[color].character
+          local playerStarterDeck = getObjectFromGUID(OBJECTS.characterDecks[character].starterDeck)
+          local deckBounds = playerStarterDeck.getBounds()
+          local drawDeckPosition = getDrawDeckPosition({
+            color = color
+          })
+          local discardDeckPosition = getDiscardDeckPosition({
+            color = color
+          })
+          local tableObject = Tables.getTableObject()
+          local tableSnapPoints = tableObject.getSnapPoints()
+          table.insert(tableSnapPoints, {
+            position = tableObject.positionToLocal({
+              x = drawDeckPosition.x,
+              y = drawDeckPosition.y - 2.5,
+              z = drawDeckPosition.z
+            })
+          })
+          table.insert(tableSnapPoints, {
+            position = tableObject.positionToLocal({
+              x = discardDeckPosition.x,
+              y = discardDeckPosition.y - 2.5,
+              z = discardDeckPosition.z
+            })
+          })
+          tableObject.setSnapPoints(tableSnapPoints)
+          spawnObject({
+            type = "ScriptingTrigger",
+            position = {
+              x = drawDeckPosition.x,
+              y = drawDeckPosition.y - 2,
+              z = drawDeckPosition.z
+            },
+            scale = {
+              x = deckBounds.size.x,
+              y = 1,
+              z = deckBounds.size.z,
+            },
+            callback_function = function(zone)
+              OBJECTS.playerDrawScriptingZones[color] = zone.guid
+            end
+          })
+          spawnObject({
+            type = "ScriptingTrigger",
+            position = {
+              x = discardDeckPosition.x,
+              y = discardDeckPosition.y - 2,
+              z = discardDeckPosition.z
+            },
+            scale = {
+              x = deckBounds.size.x,
+              y = 1,
+              z = deckBounds.size.z,
+            },
+            callback_function = function(zone)
+              OBJECTS.playerDiscardScriptingZones[color] = zone.guid
+              OBJECTS.discardScriptingZoneToPlayer[zone.guid] = color
+            end
+          })
+          playerStarterDeck.setPositionSmooth(drawDeckPosition)
+          playerStarterDeck.interactable = true
+
+          local playingColors = getPlayingColors()
+          local colorsDoneNeowBonus = {}
+          for index, color in ipairs(playingColors) do
+            if GAME_DATA.players[color].neowBonusDone then
+              table.insert(colorsDoneNeowBonus, color)
+            end
+          end
+          if #playingColors == #colorsDoneNeowBonus then
+            startFirstEncounter()
+          end
+        end
       })
     end
     local card = getObjectFromGUID(OBJECTS.playerNeowBlessingCard[color])
@@ -3010,78 +3503,6 @@ function handleNeowEffects(effects, color)
     setupPlayerBoardZone({
       color = color
     })
-
-    local character = GAME_DATA.players[color].character
-    local playerStarterDeck = getObjectFromGUID(OBJECTS.characterDecks[character].starterDeck)
-    local deckBounds = playerStarterDeck.getBounds()
-    local drawDeckPosition = getDrawDeckPosition({
-      color = color
-    })
-    local discardDeckPosition = getDiscardDeckPosition({
-      color = color
-    })
-    local tableObject = Tables.getTableObject()
-    local tableSnapPoints = tableObject.getSnapPoints()
-    table.insert(tableSnapPoints, {
-      position = tableObject.positionToLocal({
-        x = drawDeckPosition.x,
-        y = drawDeckPosition.y - 2.5,
-        z = drawDeckPosition.z
-      })
-    })
-    table.insert(tableSnapPoints, {
-      position = tableObject.positionToLocal({
-        x = discardDeckPosition.x,
-        y = discardDeckPosition.y - 2.5,
-        z = discardDeckPosition.z
-      })
-    })
-    tableObject.setSnapPoints(tableSnapPoints)
-    spawnObject({
-      type = "ScriptingTrigger",
-      position = {
-        x = drawDeckPosition.x,
-        y = drawDeckPosition.y - 2,
-        z = drawDeckPosition.z
-      },
-      scale = {
-        x = deckBounds.size.x,
-        y = 1,
-        z = deckBounds.size.z,
-      },
-      callback_function = function(zone)
-        OBJECTS.playerDrawScriptingZones[color] = zone.guid
-      end
-    })
-    spawnObject({
-      type = "ScriptingTrigger",
-      position = {
-        x = discardDeckPosition.x,
-        y = discardDeckPosition.y - 2,
-        z = discardDeckPosition.z
-      },
-      scale = {
-        x = deckBounds.size.x,
-        y = 1,
-        z = deckBounds.size.z,
-      },
-      callback_function = function(zone)
-        OBJECTS.playerDiscardScriptingZones[color] = zone.guid
-        OBJECTS.discardScriptingZoneToPlayer[zone.guid] = color
-      end
-    })
-    playerStarterDeck.setPositionSmooth(drawDeckPosition)
-    playerStarterDeck.interactable = true
-    local playingColors = getPlayingColors()
-    local colorsDoneNeowBonus = {}
-    for index, color in ipairs(playingColors) do
-      if GAME_DATA.players[color].neowBonusDone then
-        table.insert(colorsDoneNeowBonus, color)
-      end
-    end
-    if #playingColors == #colorsDoneNeowBonus then
-      startFirstEncounter()
-    end
     return 1
   end
   startLuaCoroutine(self, "handleNeowEffectsCoroutine")
@@ -3116,6 +3537,35 @@ function handleNeowThirdClick(neowCard, color)
   local effects = NEOW_BLESSING_DATA[neowCard.guid][3].effects
   local effectsJSON = JSON.encode_pretty(effects)
   handleNeowEffects(effects, color)
+end
+
+function filterNeowDeck(arguments)
+  local effectType = arguments.effectType
+  local neowBlessingDeck = getObjectFromGUID(OBJECTS.neowBlessingDeck)
+
+  local cards = neowBlessingDeck.getObjects()
+  for index, card in ipairs(cards) do
+    local buttons = NEOW_BLESSING_DATA[card.guid]
+    local isFiltered = false
+    local buttonIndex = 1
+    while buttonIndex ~= 4 do
+      local button = buttons[buttonIndex]
+      for _, effect in ipairs(button.effects) do
+        if effect.type == effectType then
+          isFiltered = true
+        end
+      end
+      buttonIndex = buttonIndex + 1
+    end
+    if not isFiltered then
+      neowBlessingDeck.takeObject({
+        guid = card.guid,
+        callback_function = function(cardObject)
+          cardObject.destruct()
+        end
+      })
+    end
+  end
 end
 
 function setupPlayers(arguments)
@@ -3153,29 +3603,21 @@ function setupPlayers(arguments)
     neowBlessingDeck.shuffle()
 
     if DEBUG_ONLY_LOSE_HP_NEOW then
-      local cards = neowBlessingDeck.getObjects()
-      for index, card in ipairs(cards) do
-        local buttons = NEOW_BLESSING_DATA[card.guid]
-        local doesLosehp = false
-        local buttonIndex = 1
-        while buttonIndex ~= 4 do
-          local button = buttons[buttonIndex]
-          for _, effect in ipairs(button.effects) do
-            if effect.type == EFFECT_TYPES.LOSE_HP then
-              doesLoseHp = true
-            end
-          end
-          buttonIndex = buttonIndex + 1
-        end
-        if not doesLoseHp then
-          neowBlessingDeck.takeObject({
-            guid = card.guid,
-            callback_function = function(cardObject)
-              cardObject.destruct()
-            end
-          })
-        end
-      end
+      filterNeowDeck({
+        effectType = EFFECT_TYPES.LOSE_HP,
+      })
+    end
+
+    if DEBUG_ONLY_UPGRADE_CARD_NEOW then
+      filterNeowDeck({
+        effectType = EFFECT_TYPES.UPGRADE_CARD,
+      })
+    end
+
+    if DEBUG_ONLY_GAIN_RELIC_NEOW then
+      filterNeowDeck({
+        effectType = EFFECT_TYPES.GAIN_RELIC
+      })
     end
 
     for index, color in ipairs(players) do
@@ -3397,6 +3839,52 @@ function setupAct(arguments)
   end
 
   startLuaCoroutine(self, "setupActCoroutine")
+end
+
+function onOptionalGainRelic(arguments)
+  local color = arguments.color
+  local guid = arguments.guid
+  local card = getObjectFromGUID(guid)
+  local name = card.getName()
+
+  myLog(color.." picks "..name)
+end
+
+function onOptionalGainPickUp(arguments)
+  local color = arguments.color
+  local guid = arguments.guid
+  local gainData = GAME_DATA.players[color].optionalGainInProgress
+
+  if gainData.tag == TAG_TYPES.RELIC then
+    onOptionalGainRelic({
+      color = color,
+      guid = guid
+    })
+  end
+end
+
+function onObjectPickUp(color, object)
+  local optionalGain = GAME_DATA.players[color].optionalGainInProgress
+  if optionalGain ~= nil then
+    local tag = object.getTags()[1]
+    local isValidGuid = false
+    for _, objectGuid in ipairs(optionalGain.objects) do
+      if object.guid == objectGuid then
+        isValidGuid = true
+        break
+      end
+    end
+
+    if tag == optionalGain.tag then
+      object.drop()
+      if isValidGuid then
+        onOptionalGainPickUp({
+          color = color,
+          guid = object.guid
+        })
+      end
+    end
+  end
 end
 
 function onObjectLeaveZone(zone, object)
