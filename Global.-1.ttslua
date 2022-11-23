@@ -1,7 +1,10 @@
 DEBUG_ONLY_LOSE_HP_NEOW = false
-DEBUG_ONLY_UPGRADE_CARD_NEOW = false
 DEBUG_ONLY_GAIN_RELIC_NEOW = false
-DEBUG_ONLY_GAIN_COLORLESS_NEOW = true
+DEBUG_ONLY_GAIN_COLORLESS_NEOW = false
+DEBUG_ONLY_UPGRADE_CARD_NEOW = false
+DEBUG_ONLY_REMOVE_CARD_NEOW = false
+DEBUG_ONLY_RARE_CARD_NEOW = false
+DEBUG_ONLY_TRANSFORM_NEOW = true
 
 CHARACTERS = {"Ironclad", "Silent", "Defect", "Watcher"}
 
@@ -73,6 +76,8 @@ GAME_DATA = {
       neowBonusDone = false,
       hp = 0,
       optionalGainInProgress = nil,
+      cardUpgradeInProgress = nil,
+      cardRemoveInProgress = nil,
       relics = {},
     },
     Green = {
@@ -80,6 +85,8 @@ GAME_DATA = {
       neowBonusDone = false,
       hp = 0,
       optionalGainInProgress = nil,
+      cardUpgradeInProgress = nil,
+      cardRemoveInProgress = nil,
       relics = {},
     },
     Blue = {
@@ -87,6 +94,8 @@ GAME_DATA = {
       neowBonusDone = false,
       hp = 0,
       optionalGainInProgress = nil,
+      cardUpgradeInProgress = nil,
+      cardRemoveInProgress = nil,
       relics = {},
     },
     Pink = {
@@ -94,6 +103,8 @@ GAME_DATA = {
       neowBonusDone = false,
       hp = 0,
       optionalGainInProgress = nil,
+      cardUpgradeInProgress = nil,
+      cardRemoveInProgress = nil,
       relics = {},
     }
   }
@@ -192,6 +203,34 @@ OBJECTS = {
     Pink = nil
   },
   discardScriptingZoneToPlayer = {},
+  playerDeckScriptingZones = {
+    Red = nil,
+    Green = nil,
+    Blue = nil,
+    Pink = nil
+  },
+  deckScriptingZoneToPlayer = {},
+  playerUpgradeCardScriptingZones = {
+    Red = nil,
+    Green = nil,
+    Blue = nil,
+    Pink = nil
+  },
+  upgradeCardScriptingZoneToPlayer = {},
+  playerRemoveCardScriptingZones = {
+    Red = nil,
+    Green = nil,
+    Blue = nil,
+    Pink = nil
+  },
+  removeCardScriptingZoneToPlayer = {},
+  playerTransformCardScriptingZones = {
+    Red = nil,
+    Green = nil,
+    Blue = nil,
+    Pink = nil
+  },
+  transformCardScriptingZoneToPlayer = {},
 
   boot = "d4e0e6",
   goldBag1 = "3c7af8",
@@ -200,7 +239,7 @@ OBJECTS = {
   blockBag = "ffeff0",
   block5Bag = "44889c",
   relicsDeck = "789dfc",
-  curseDeck = "5e57a7",
+  curseDeck = "2987a7",
   colorlessDeck = "8049ab",
 
   actMaps = {
@@ -2381,6 +2420,661 @@ function getPositionForMap(arguments)
   }
 end
 
+function upgradeCardThenMoveTo(arguments)
+  local card = arguments.card
+  local position = arguments.position
+  function upgradeCardCoroutine()
+    local rotation = card.getRotation()
+    local isFlipped = rotation.z ~= 180
+    local upgradedCard = card.setState(2)
+    waitFrames(50)
+    if isFlipped then
+      upgradedCard.flip()
+    end
+    upgradedCard.setPositionSmooth(position)
+    return 1
+  end
+
+  startLuaCoroutine(self, "upgradeCardCoroutine")
+end
+
+function removeButtonWithFunctionName(arguments)
+  local object = arguments.object
+  local name = arguments.name
+  local buttons = object.getButtons()
+  for _, button in ipairs(buttons) do
+    if button.click_function == name then
+      object.removeButton(button.index)
+      break
+    end
+  end
+end
+
+function doForCardInDeck(arguments)
+  local amount = arguments.amount
+  local deck = arguments.deck
+  local callback = arguments.callback
+  local remainingCallback = arguments.remainingCallback
+
+  local index = 0
+  local cardsData = deck.getObjects()
+  local deckPosition = deck.getPosition()
+  while index ~= amount and index ~= #cardsData do
+    if #cardsData - index == 1 then
+      local card = getObjectFromGUID(cardsData[index + 1].guid)
+      callback({
+        card = card
+      })
+    else
+      deck.takeObject({
+        guid = cardsData[index + 1].guid,
+        position = {
+          x = deckPosition.x,
+          y = deckPosition.y,
+          z = deckPosition.z + 3 + (index * 3)
+        },
+        callback_function = function(card)
+          callback({
+            card = card
+          })
+        end
+      })
+    end
+    index = index + 1
+  end
+
+  local remainingTotal = #cardsData - index
+  while index ~= #cardsData and remainingCallback ~= nil do
+    if #cardsData - index == 1 then
+      local card = getObjectFromGUID(cardsData[index + 1].guid)
+      remainingCallback({
+        card = card,
+        remainingTotal = remainingTotal
+      })
+      break
+    else
+      deck.takeObject({
+        guid = cardsData[index + 1].guid,
+        position = {
+          x = deckPosition.x,
+          y = deckPosition.y,
+          z = deckPosition.z + 3 + (index * 3)
+        },
+        callback_function = function(card)
+          remainingCallback({
+            card = card,
+            remainingTotal = remainingTotal
+          })
+        end
+      })
+    end
+    index = index + 1
+  end
+end
+
+function handleUpgradeCardClick(arguments)
+  local color = arguments.color
+  local colorClicks = arguments.colorClicks
+
+  if color ~= colorClicks then
+    return
+  end
+
+  local tableObject = Tables.getTableObject()
+  local upgradeData = GAME_DATA.players[color].cardUpgradeInProgress
+  local zone = getObjectFromGUID(OBJECTS.playerUpgradeCardScriptingZones[color])
+  local objectData = zone.getObjects()[1]
+
+  function doneUpgrade(waitCount)
+    removeButtonWithFunctionName({
+      object = tableObject,
+      name = "handleUpgradeCardClick"..color,
+    })
+
+    OBJECTS.playerUpgradeCardScriptingZones[color] = nil
+    OBJECTS.upgradeCardScriptingZoneToPlayer[zone.guid] = nil
+    zone.destruct()
+    local board = getObjectFromGUID(OBJECTS.characterBoards[GAME_DATA.players[color].character])
+    local boardPosition = board.getPosition()
+    local drawPosition = getDrawDeckPosition({
+      color = color
+    })
+    local areaPosition = tableObject.positionToLocal({
+      x = boardPosition.x,
+      y = boardPosition.y,
+      z = drawPosition.z - 4
+    })
+    local tableObject = Tables.getTableObject()
+    local snapPoints = tableObject.getSnapPoints()
+    local indexToRemove = -1
+    for index, snapPoint in ipairs(snapPoints) do
+      if snapPoint.position.x == areaPosition.x and
+        snapPoint.position.y == areaPosition.y and
+        snapPoint.position.z == areaPosition.z then
+          indexToRemove = index
+          break
+        end
+    end
+    if indexToRemove ~= -1 then
+      table.remove(snapPoints, indexToRemove)
+      tableObject.setSnapPoints(snapPoints)
+    end
+
+    local doneCallbacks = GAME_DATA.players[color].cardUpgradeInProgress.onDone
+    GAME_DATA.players[color].cardUpgradeInProgress = nil
+    for _, callback in ipairs(doneCallbacks) do
+      callback(waitCount)
+    end
+  end
+
+  if objectData == nil then
+    doneUpgrade(10)
+    return
+  end
+  local deckPosition = getDecksPosition({
+    color = color
+  })
+  local object = getObjectFromGUID(objectData.guid)
+  local waitCount = 500
+  if object.name == "Deck" then
+    local objectPosition = object.getPosition()
+    local cardsData = object.getObjects()
+
+    doForCardInDeck({
+      deck = object,
+      amount = upgradeData.amount,
+      callback = function(args)
+        upgradeCardThenMoveTo({
+          card = args.card,
+          position = deckPosition
+        })
+      end,
+      remainingCallback = function(args)
+        waitCount = 600
+        local card = args.card
+        local rotation = card.getRotation()
+        local isFlipped = rotation.z ~= 180
+        if isFlipped then
+          card.flip()
+        end
+        card.setPositionSmooth(deckPosition, false, true)
+      end
+    })
+  else
+    upgradeCardThenMoveTo({
+      card = object,
+      position = deckPosition
+    })
+  end
+
+  doneUpgrade(waitCount)
+end
+
+function handleUpgradeCardClickRed(_, clickColor)
+  handleUpgradeCardClick({
+    color = "Red",
+    colorClicks = clickColor
+  })
+end
+
+function handleUpgradeCardClickGreen(_, clickColor)
+  handleUpgradeCardClick({
+    color = "Green",
+    colorClicks = clickColor
+  })
+end
+
+function handleUpgradeCardClickBlue(_, clickColor)
+  handleUpgradeCardClick({
+    color = "Blue",
+    colorClicks = clickColor
+  })
+end
+
+function handleUpgradeCardClickPink(_, clickColor)
+  handleUpgradeCardClick({
+    color = "Pink",
+    colorClicks = clickColor
+  })
+end
+
+function prepareAreaForCards(arguments)
+  local color = arguments.color
+  local playerToZone = arguments.playerToZone
+  local zoneToPlayer = arguments.zoneToPlayer
+  local clickFunctionPrefix = arguments.clickFunctionPrefix
+  local label = arguments.label
+  local board = getObjectFromGUID(OBJECTS.characterBoards[GAME_DATA.players[color].character])
+  local boardPosition = board.getPosition()
+  local drawPosition = getDrawDeckPosition({
+    color = color
+  })
+  local areaBounds = {
+    x = 12,
+    y = 0.3,
+    z = 3.3
+  }
+  local areaPosition = {
+    x = boardPosition.x,
+    y = boardPosition.y,
+    z = drawPosition.z - 4
+  }
+
+  local tableObject = Tables.getTableObject()
+  local tableSnapPoints = tableObject.getSnapPoints()
+  table.insert(tableSnapPoints, {
+    position = tableObject.positionToLocal({
+      x = areaPosition.x,
+      y = areaPosition.y,
+      z = areaPosition.z,
+    })
+  })
+  tableObject.setSnapPoints(tableSnapPoints)
+  spawnObject({
+    type = "ScriptingTrigger",
+    position = areaPosition,
+    scale = { 2, 2, 2 },
+    callback_function = function(zone)
+      playerToZone[color] = zone.guid
+      zoneToPlayer[zone.guid] = color
+    end
+  })
+  local clickFunction = clickFunctionPrefix..color
+  tableObject.createButton({
+    click_function = clickFunction,
+    function_owner = self,
+    label = label,
+    position = tableObject.positionToLocal({
+      x = -areaPosition.x,
+      y = areaPosition.y,
+      z = areaPosition.z - 2.5,
+    }),
+    rotation = { 0, 180, 0 },
+    width = 1200,
+    height = 100,
+    font_size = 100,
+    scale = { 1, 1, 1 }
+  })
+end
+
+function prepareAreaForCardUpgrade(arguments)
+  local color = arguments.color
+  local amount = arguments.amount or 1
+  local onDone = arguments.onDone
+
+  if GAME_DATA.players[color].cardUpgradeInProgress ~= nil then
+    return
+  end
+  GAME_DATA.players[color].cardUpgradeInProgress = {
+    amount = amount,
+    onDone = {onDone}
+  }
+
+  local label = "Upgrade ("
+  if amount == 1 then
+    label = label..amount.." card max)"
+  else
+    label = label..amount.." cards max)"
+  end
+  prepareAreaForCards({
+    color = color,
+    label = label,
+    playerToZone = OBJECTS.playerUpgradeCardScriptingZones,
+    zoneToPlayer = OBJECTS.upgradeCardScriptingZoneToPlayer,
+    clickFunctionPrefix = "handleUpgradeCardClick",
+  })
+end
+
+function handleRemoveCardClick(arguments)
+  local color = arguments.color
+  local colorClicks = arguments.colorClicks
+
+  if color ~= colorClicks then
+    return
+  end
+
+  local tableObject = Tables.getTableObject()
+  local removeData = GAME_DATA.players[color].cardRemoveInProgress
+  local zone = getObjectFromGUID(OBJECTS.playerRemoveCardScriptingZones[color])
+  local objectData = zone.getObjects()[1]
+
+  function doneRemove(waitCount)
+    removeButtonWithFunctionName({
+      object = tableObject,
+      name = "handleRemoveCardClick"..color
+    })
+
+    OBJECTS.playerRemoveCardScriptingZones[color] = nil
+    OBJECTS.removeCardScriptingZoneToPlayer[zone.guid] = nil
+    zone.destruct()
+    local board = getObjectFromGUID(OBJECTS.characterBoards[GAME_DATA.players[color].character])
+    local boardPosition = board.getPosition()
+    local drawPosition = getDrawDeckPosition({
+      color = color
+    })
+    local areaPosition = tableObject.positionToLocal({
+      x = boardPosition.x,
+      y = boardPosition.y,
+      z = drawPosition.z - 4
+    })
+    local tableObject = Tables.getTableObject()
+    local snapPoints = tableObject.getSnapPoints()
+    local indexToRemove = -1
+    for index, snapPoint in ipairs(snapPoints) do
+      if snapPoint.position.x == areaPosition.x and
+        snapPoint.position.y == areaPosition.y and
+        snapPoint.position.z == areaPosition.z then
+          indexToRemove = index
+          break
+        end
+    end
+    if indexToRemove ~= -1 then
+      table.remove(snapPoints, indexToRemove)
+      tableObject.setSnapPoints(snapPoints)
+    end
+
+    local doneCallbacks = GAME_DATA.players[color].cardRemoveInProgress.onDone
+    GAME_DATA.players[color].cardRemoveInProgress = nil
+    for _, callback in ipairs(doneCallbacks) do
+      callback(waitCount)
+    end
+  end
+
+  if objectData == nil then
+    doneRemove(10)
+    return
+  end
+  local deckPosition = getDecksPosition({
+    color = color
+  })
+  local object = getObjectFromGUID(objectData.guid)
+  local waitCount = 200
+  if object.name == "Deck" then
+    local objectPosition = object.getPosition()
+    local cardsData = object.getObjects()
+    doForCardInDeck({
+      deck = object,
+      amount = removeData.amount,
+      callback = function(args)
+        args.card.destruct()
+      end,
+      remainingCallback = function(args)
+        waitCount = math.max(400, 140 * args.remainingTotal)
+        local card = args.card
+        local rotation = card.getRotation()
+        local isFlipped = rotation.z ~= 180
+        if isFlipped then
+          card.flip()
+        end
+        card.setPositionSmooth(deckPosition, false, true)
+      end
+    })
+  else
+    object.destruct()
+  end
+
+  doneRemove(waitCount)
+end
+
+function handleRemoveCardClickRed(_, clickColor)
+  handleRemoveCardClick({
+    color = "Red",
+    colorClicks = clickColor
+  })
+end
+
+function handleRemoveCardClickGreen(_, clickColor)
+  handleRemoveCardClick({
+    color = "Green",
+    colorClicks = clickColor
+  })
+end
+
+function handleRemoveCardClickBlue(_, clickColor)
+  handleRemoveCardClick({
+    color = "Blue",
+    colorClicks = clickColor
+  })
+end
+
+function handleRemoveCardClickPink(_, clickColor)
+  handleRemoveCardClick({
+    color = "Pink",
+    colorClicks = clickColor
+  })
+end
+
+function prepareAreaForCardRemove(arguments)
+  local color = arguments.color
+  local amount = arguments.amount or 1
+  local onDone = arguments.onDone
+
+  if GAME_DATA.players[color].cardRemoveInProgress ~= nil then
+    return
+  end
+  GAME_DATA.players[color].cardRemoveInProgress = {
+    amount = amount,
+    onDone = {onDone}
+  }
+
+  local label = "Remove ("
+  if amount == 1 then
+    label = label..amount.." card max)"
+  else
+    label = label..amount.." cards max)"
+  end
+  prepareAreaForCards({
+    color = color,
+    label = label,
+    playerToZone = OBJECTS.playerRemoveCardScriptingZones,
+    zoneToPlayer = OBJECTS.removeCardScriptingZoneToPlayer,
+    clickFunctionPrefix = "handleRemoveCardClick",
+  })
+end
+
+function handleTransformCardClick(arguments)
+  local color = arguments.color
+  local colorClicks = arguments.colorClicks
+  local character = GAME_DATA.players[color].character
+
+  if color ~= colorClicks then
+    return
+  end
+
+  local tableObject = Tables.getTableObject()
+  local transformData = GAME_DATA.players[color].cardTransformInProgress
+  local zone = getObjectFromGUID(OBJECTS.playerTransformCardScriptingZones[color])
+  local objectData = zone.getObjects()[1]
+
+  function doneTransform(waitCount)
+    removeButtonWithFunctionName({
+      object = tableObject,
+      name = "handleTransformCardClick"..color
+    })
+
+    OBJECTS.playerTransformCardScriptingZones[color] = nil
+    OBJECTS.transformCardScriptingZoneToPlayer[zone.guid] = nil
+    zone.destruct()
+    local board = getObjectFromGUID(OBJECTS.characterBoards[GAME_DATA.players[color].character])
+    local boardPosition = board.getPosition()
+    local drawPosition = getDrawDeckPosition({
+      color = color
+    })
+    local areaPosition = tableObject.positionToLocal({
+      x = boardPosition.x,
+      y = boardPosition.y,
+      z = drawPosition.z - 4
+    })
+    local tableObject = Tables.getTableObject()
+    local snapPoints = tableObject.getSnapPoints()
+    local indexToRemove = -1
+    for index, snapPoint in ipairs(snapPoints) do
+      if snapPoint.position.x == areaPosition.x and
+        snapPoint.position.y == areaPosition.y and
+        snapPoint.position.z == areaPosition.z then
+          indexToRemove = index
+          break
+        end
+    end
+    if indexToRemove ~= -1 then
+      table.remove(snapPoints, indexToRemove)
+      tableObject.setSnapPoints(snapPoints)
+    end
+
+    local doneCallbacks = GAME_DATA.players[color].cardTransformInProgress.onDone
+    GAME_DATA.players[color].cardTransformInProgress = nil
+    for _, callback in ipairs(doneCallbacks) do
+      callback(waitCount)
+    end
+  end
+
+  if objectData == nil then
+    doneTransform(10)
+    return
+  end
+  local deckPosition = getDecksPosition({
+    color = color
+  })
+  local rewardsDeck = getObjectFromGUID(OBJECTS.characterDecks[character].rewardsDeck)
+  local object = getObjectFromGUID(objectData.guid)
+  if object.name == "Deck" then
+    local objectPosition = object.getPosition()
+    local cardsData = object.getObjects()
+    local hasCurse = false
+    for _, cardData in ipairs(cardsData) do
+      local tags = cardData.tags
+      for _, tag in ipairs(tags) do
+        if tag == "Curse" then
+          hasCurse = true
+          break
+        end
+      end
+    end
+    if hasCurse then
+      broadcastToColor("You can't transform curse, please remove it.", color)
+      return
+    end
+
+    local cardsHandled = 0
+    doForCardInDeck({
+      deck = object,
+      amount = transformData.amount,
+      callback = function(args)
+        local card = args.card
+        local cardPosition = card.getPosition()
+        card.destruct()
+        takeRewardCard({
+          color = color,
+          position = cardPosition,
+          flip = true,
+          callback_function = function(card)
+            card.flip()
+            card.setPositionSmooth(deckPosition, false, true)
+            cardsHandled = cardsHandled + 1
+            if cardsHandled == #cardsData then
+              doneTransform(200)
+            end
+          end
+        })
+      end,
+      remainingCallback = function(args)
+        local card = args.card
+        local rotation = card.getRotation()
+        local isFlipped = rotation.z ~= 180
+        if isFlipped then
+          card.flip()
+        end
+        card.setPositionSmooth(deckPosition, false, true)
+        cardsHandled = cardsHandled + 1
+        if cardsHandled == #cardsData then
+          doneTransform(200)
+        end
+      end
+    })
+  else
+    local hasCurse = false
+    local tags = object.getTags()
+    for _, tag in ipairs(tags) do
+      if tag == "Curse" then
+        hasCurse = true
+        break
+      end
+    end
+    if hasCurse then
+      broadcastToColor("You can't transform curse, please remove it.", color)
+      return
+    end
+    local cardPosition = object.getPosition()
+    object.destruct()
+    takeRewardCard({
+      color = color,
+      position = cardPosition,
+      flip = true,
+      callback_function = function(card)
+        card.flip()
+        card.setPositionSmooth(deckPosition, false, true)
+        doneTransform(200)
+      end
+    })
+  end
+end
+
+function handleTransformCardClickRed(_, clickColor)
+  handleTransformCardClick({
+    color = "Red",
+    colorClicks = clickColor
+  })
+end
+
+function handleTransformCardClickGreen(_, clickColor)
+  handleTransformCardClick({
+    color = "Green",
+    colorClicks = clickColor
+  })
+end
+
+function handleTransformCardClickBlue(_, clickColor)
+  handleTransformCardClick({
+    color = "Blue",
+    colorClicks = clickColor
+  })
+end
+
+function handleTransformCardClickPink(_, clickColor)
+  handleTransformCardClick({
+    color = "Pink",
+    colorClicks = clickColor
+  })
+end
+
+function prepareAreaForCardTransform(arguments)
+  local color = arguments.color
+  local amount = arguments.amount or 1
+  local onDone = arguments.onDone
+
+  if GAME_DATA.players[color].cardTransformInProgress ~= nil then
+    return
+  end
+  GAME_DATA.players[color].cardTransformInProgress = {
+    amount = amount,
+    onDone = {onDone}
+  }
+
+  local label = "Transform ("
+  if amount == 1 then
+    label = label..amount.." card max)"
+  else
+    label = label..amount.." cards max)"
+  end
+  prepareAreaForCards({
+    color = color,
+    label = label,
+    playerToZone = OBJECTS.playerTransformCardScriptingZones,
+    zoneToPlayer = OBJECTS.transformCardScriptingZoneToPlayer,
+    clickFunctionPrefix = "handleTransformCardClick",
+  })
+end
+
 function endOptionalGain(arguments)
   local color = arguments.color
   local taken = arguments.taken
@@ -2451,9 +3145,150 @@ function handleSkipOptionalGainClickPink(_, clickColor)
   })
 end
 
+function takeRewardCallbackRed(arguments)
+  local card = arguments.card
+  local callback = arguments.callback
+  local rareDeck = arguments.rareDeck
+  local position = arguments.position
+  local flip = arguments.flip
+  local rewardDeck = arguments.rewardDeck
+
+  function takeRewardCallbackRedCoroutine()
+    local name = card.getName()
+    if name ~= "Golden Ticket" then
+      callback(card)
+      return 1
+    end
+    waitFrames(100)
+    rewardDeck.putObject(card)
+    rareDeck.takeObject({
+      position = position,
+      flip = flip,
+      callback_function = function(rareCard)
+        callback(rareCard, true)
+      end
+    })
+
+    return 1
+  end
+  startLuaCoroutine(self, "takeRewardCallbackRedCoroutine")
+end
+
+function takeRewardCallbackGreen(arguments)
+  local card = arguments.card
+  local callback = arguments.callback
+  local rareDeck = arguments.rareDeck
+  local position = arguments.position
+  local flip = arguments.flip
+  local rewardDeck = arguments.rewardDeck
+
+  function takeRewardCallbackGreenCoroutine()
+    local name = card.getName()
+    if name ~= "Golden Ticket" then
+      callback(card)
+      return 1
+    end
+    waitFrames(100)
+    rewardDeck.putObject(card)
+    rareDeck.takeObject({
+      position = position,
+      flip = flip,
+      callback_function = function(rareCard)
+        callback(rareCard, true)
+      end
+    })
+
+    return 1
+  end
+  startLuaCoroutine(self, "takeRewardCallbackGreenCoroutine")
+end
+
+function takeRewardCallbackBlue(arguments)
+  local card = arguments.card
+  local callback = arguments.callback
+  local rareDeck = arguments.rareDeck
+  local position = arguments.position
+  local flip = arguments.flip
+  local rewardDeck = arguments.rewardDeck
+
+  function takeRewardCallbackBlueCoroutine()
+    local name = card.getName()
+    if name ~= "Golden Ticket" then
+      callback(card)
+      return 1
+    end
+    waitFrames(100)
+    rewardDeck.putObject(card)
+    rareDeck.takeObject({
+      position = position,
+      flip = flip,
+      callback_function = function(rareCard)
+        callback(rareCard, true)
+      end
+    })
+
+    return 1
+  end
+  startLuaCoroutine(self, "takeRewardCallbackBlueCoroutine")
+end
+
+function takeRewardCallbackPink(arguments)
+  local card = arguments.card
+  local callback = arguments.callback
+  local rareDeck = arguments.rareDeck
+  local position = arguments.position
+  local flip = arguments.flip
+  local rewardDeck = arguments.rewardDeck
+
+  function takeRewardCallbackPinkCoroutine()
+    local name = card.getName()
+    if name ~= "Golden Ticket" then
+      callback(card)
+      return 1
+    end
+    waitFrames(100)
+    rewardDeck.putObject(card)
+    rareDeck.takeObject({
+      position = position,
+      flip = flip,
+      callback_function = function(rareCard)
+        callback(rareCard, true)
+      end
+    })
+
+    return 1
+  end
+  startLuaCoroutine(self, "takeRewardCallbackPinkCoroutine")
+end
+
+function takeRewardCard(arguments)
+  local color = arguments.color
+  local character = GAME_DATA.players[color].character
+  local rareDeck = getObjectFromGUID(OBJECTS.characterDecks[character].rareDeck)
+  local rewardDeck = getObjectFromGUID(OBJECTS.characterDecks[character].rewardsDeck)
+
+  local callback = arguments.callback_function
+
+  rewardDeck.takeObject({
+    position = arguments.position,
+    flip = arguments.flip,
+    callback_function = function(card)
+      Global.call("takeRewardCallback"..color, {
+        card = card,
+        rewardDeck = rewardDeck,
+        rareDeck = rareDeck,
+        callback = callback,
+        position = arguments.position,
+        flip = arguments.flip,
+      })
+    end
+  })
+end
+
 function prepareAreaForOptionalGain(arguments)
   local color = arguments.color
   local deck = getObjectFromGUID(arguments.deck)
+  local character = GAME_DATA.players[color].character
   local tag = arguments.tag
   local amount = arguments.amount or 1
   local onDone = arguments.onDone
@@ -2485,53 +3320,82 @@ function prepareAreaForOptionalGain(arguments)
     z = drawPosition.z - 4
   }
 
+  local takeObject = deck.takeObject
+  if deck.guid == OBJECTS.characterDecks[character].rewardsDeck then
+    takeObject = takeRewardCard
+  end
+  local objects = GAME_DATA.players[color].optionalGainInProgress.objects
   if amount == 1 then
-    table.insert(GAME_DATA.players[color].optionalGainInProgress.objects, deck.takeObject({
+    takeObject({
+      color = color,
       position = areaPosition,
-      flip = true
-    }).guid)
+      flip = true,
+      callback_function = function(object)
+        table.insert(objects, object.guid)
+      end
+    })
   elseif amount == 2 then
-    table.insert(GAME_DATA.players[color].optionalGainInProgress.objects, deck.takeObject({
+    takeObject({
+      color = color,
       position = {
         x = areaPosition.x - 2,
         y = areaPosition.y,
         z = areaPosition.z
       },
-      flip = true
-    }).guid)
-    table.insert(GAME_DATA.players[color].optionalGainInProgress.objects, deck.takeObject({
+      flip = true,
+      callback_function = function(object)
+        table.insert(objects, object.guid)
+      end
+    })
+    takeObject({
+      color = color,
       position = {
         x = areaPosition.x + 2,
         y = areaPosition.y,
         z = areaPosition.z
       },
-      flip = true
-    }).guid)
+      flip = true,
+      callback_function = function(object)
+        table.insert(objects, object.guid)
+      end
+    })
   elseif amount == 3 then
-    table.insert(GAME_DATA.players[color].optionalGainInProgress.objects, deck.takeObject({
+    takeObject({
+      color = color,
       position = {
         x = areaPosition.x - 4,
         y = areaPosition.y,
         z = areaPosition.z
       },
-      flip = true
-    }).guid)
-    table.insert(GAME_DATA.players[color].optionalGainInProgress.objects, deck.takeObject({
+      flip = true,
+      callback_function = function(object)
+        table.insert(objects, object.guid)
+      end
+    })
+    takeObject({
+      color = color,
       position = {
         x = areaPosition.x,
         y = areaPosition.y,
         z = areaPosition.z
       },
-      flip = true
-    }).guid)
-    table.insert(GAME_DATA.players[color].optionalGainInProgress.objects, deck.takeObject({
+      flip = true,
+      callback_function = function(object)
+        table.insert(objects, object.guid)
+      end
+    })
+    takeObject({
+      color = color,
       position = {
         x = areaPosition.x + 4,
         y = areaPosition.y,
         z = areaPosition.z
       },
-      flip = true
-    }).guid)
+      flip = true,
+      callback_function = function(object)
+        table.insert(objects, object.guid)
+      end
+    })
   end
 
   local tableObject = Tables.getTableObject()
@@ -2715,8 +3579,40 @@ end
 
 function handleGainCardEffect(arguments)
   local color = arguments.color
+  local amount = arguments.amount or 1
   local character = GAME_DATA.players[color].character
-  local rewardsDeck = getObjectFromGUID(OBJECTS.characterDecks[character].rewardsDeck)
+  local onDone = arguments.onDone
+
+  repeatPrepareAreaForOptionalGain(amount, {
+    color = color,
+    deck = OBJECTS.characterDecks[character].rewardsDeck,
+    amount = 3,
+    tag = nil,
+    onDone = function()
+      if onDone ~= nil then
+        onDone(450)
+      end
+    end
+  })
+end
+
+function handleGainRareCardEffect(arguments)
+  local color = arguments.color
+  local amount = arguments.amount or 1
+  local character = GAME_DATA.players[color].character
+  local onDone = arguments.onDone
+
+  repeatPrepareAreaForOptionalGain(amount, {
+    color = color,
+    deck = OBJECTS.characterDecks[character].rareDeck,
+    amount = 3,
+    tag = nil,
+    onDone = function()
+      if onDone ~= nil then
+        onDone(450)
+      end
+    end
+  })
 end
 
 function handleLoseHpEffect(arguments)
@@ -2731,9 +3627,31 @@ function handleUpgradeCardEffect(arguments)
   local amount = arguments.amount
   local onDone = arguments.onDone
 
-  if onDone ~= nil then
-    onDone()
-  end
+  prepareAreaForCardUpgrade({
+    color = color,
+    amount = amount,
+    onDone = function(waitCount)
+      if onDone ~= nil then
+        onDone(waitCount or 500)
+      end
+    end
+  })
+end
+
+function handleRemoveCardEffect(arguments)
+  local color = arguments.color
+  local amount = arguments.amount
+  local onDone = arguments.onDone
+
+  prepareAreaForCardRemove({
+    color = color,
+    amount = amount,
+    onDone = function(waitCount)
+      if onDone ~= nil then
+        onDone(waitCount or 100)
+      end
+    end
+  })
 end
 
 function getRelicsPosition(arguments)
@@ -2768,13 +3686,13 @@ function handleGainCurseEffect(arguments)
   local amount = arguments.amount or 1
   local onDone = arguments.onDone
   local curseDeck = getObjectFromGUID(OBJECTS.curseDeck)
-  local drawDeckPosition = getDrawDeckPosition({
+  local deckPosition = getDecksPosition({
     color = color
   })
 
   curseDeck.shuffle()
   curseDeck.takeObject({
-    position = drawDeckPosition,
+    position = deckPosition,
   })
 
   if onDone ~= nil then
@@ -2795,7 +3713,28 @@ function handleGainColorlessCardEffect(arguments)
     deck = OBJECTS.colorlessDeck,
     amount = 3,
     tag = nil,
-    onDone = onDone
+    onDone = function()
+      if onDone ~= nil then
+        onDone(450)
+      end
+    end
+  })
+end
+
+function handleTransformCardEffect(arguments)
+  local color = arguments.color
+  local amount = arguments.amount
+  local onDone = arguments.onDone
+
+  prepareAreaForCardTransform({
+    color = color,
+    amount = amount,
+    onDone = function(waitCount)
+      myLog(waitCount)
+      if onDone ~= nil then
+        onDone(waitCount or 100)
+      end
+    end
   })
 end
 
@@ -2831,6 +3770,11 @@ function handleEffect(arguments)
         return 1
       end
 
+      if effect.type == EFFECT_TYPES.GAIN_RARE_CARD then
+        handleGainRareCardEffect({ color = color, onDone = onDone })
+        return 1
+      end
+
       if effect.type == EFFECT_TYPES.LOSE_HP then
         handleLoseHpEffect({
           color = color,
@@ -2842,6 +3786,24 @@ function handleEffect(arguments)
 
       if effect.type == EFFECT_TYPES.UPGRADE_CARD then
         handleUpgradeCardEffect({
+          color = color,
+          amount = amount,
+          onDone = onDone
+        })
+        return 1
+      end
+
+      if effect.type == EFFECT_TYPES.REMOVE_CARD then
+        handleRemoveCardEffect({
+          color = color,
+          amount = amount,
+          onDone = onDone
+        })
+        return 1
+      end
+
+      if effect.type == EFFECT_TYPES.TRANSFORM_CARD then
+        handleTransformCardEffect({
           color = color,
           amount = amount,
           onDone = onDone
@@ -2963,9 +3925,21 @@ function setupPlayerDecks(arguments)
       z = 180
     }
   })
-  starterDeck.interactable = false
-  starterDeck.shuffle()
   OBJECTS.characterDecks[character].starterDeck = starterDeck.guid
+
+  spawnObject({
+    type = "ScriptingTrigger",
+    position = {
+      x = decksPosition.x,
+      y = decksPosition.y - 2.2,
+      z = decksPosition.z
+    },
+    scale = starterDeck.getBounds().size,
+    callback_function = function(zone)
+      OBJECTS.playerDeckScriptingZones[color] = zone.guid
+      OBJECTS.deckScriptingZoneToPlayer[zone.guid] = color
+    end
+  })
 
   local rewardsDeck = characterBag.takeObject({
     position = {
@@ -2979,7 +3953,7 @@ function setupPlayerDecks(arguments)
       z = 180
     }
   })
-  rewardsDeck.interactable = false
+  rewardsDeck.interactable = true
   rewardsDeck.shuffle()
   OBJECTS.characterDecks[character].rewardsDeck = rewardsDeck.guid
 
@@ -3426,8 +4400,13 @@ function setupEncounter(arguments)
   GAME_DATA.combat.inProgress = true
   local playingColors = getPlayingColors()
   for index, color in ipairs(playingColors) do
-    local zone = getObjectFromGUID(OBJECTS.playerDrawScriptingZones[color])
-    local deck = zone.getObjects()[1]
+    local deckZone = getObjectFromGUID(OBJECTS.playerDeckScriptingZones[color])
+    local deckGuid = deckZone.getObjects()[1].guid
+    local deck = getObjectFromGUID(deckGuid)
+    local drawDeckPosition = getDrawDeckPosition({
+      color = color
+    })
+    deck.setPositionSmooth(drawDeckPosition)
     deck.shuffle()
   end
 
@@ -3494,9 +4473,10 @@ function setupEncounter(arguments)
   })
 end
 
-function setupFirstEncounter()
+function setupFirstEncounter(arguments)
+  local waitCount = arguments.waitCount or 100
   function setupFirstEncounterCoroutine()
-    waitFrames(400)
+    waitFrames(waitCount)
     local map = getObjectFromGUID(OBJECTS.actMaps[1])
     setupEncounter({
       bag = getObjectFromGUID(OBJECTS.firstEncounterBag),
@@ -3508,8 +4488,8 @@ function setupFirstEncounter()
   startLuaCoroutine(self, "setupFirstEncounterCoroutine")
 end
 
-function startFirstEncounter()
-  setupFirstEncounter()
+function startFirstEncounter(arguments)
+  setupFirstEncounter(arguments)
 end
 
 function startEncounter()
@@ -3544,6 +4524,7 @@ function handleNeowEffects(effects, color)
     end
     GAME_DATA.players[color].neowBonusStarted = true
     local effectsDone = 0
+    local maxWaitCount = 100
     for index, effect in ipairs(effects) do
       handleEffect({
         effect = effect,
@@ -3553,8 +4534,11 @@ function handleNeowEffects(effects, color)
             color = color
           }
         },
-        onDone = function()
+        onDone = function(waitCount)
           effectsDone = effectsDone + 1
+          if waitCount ~= nil then
+            maxWaitCount = math.max(waitCount, maxWaitCount)
+          end
           if effectsDone ~= #effects then
             return
           end
@@ -3563,6 +4547,9 @@ function handleNeowEffects(effects, color)
           local character = GAME_DATA.players[color].character
           local playerStarterDeck = getObjectFromGUID(OBJECTS.characterDecks[character].starterDeck)
           local deckBounds = playerStarterDeck.getBounds()
+          local deckPosition = getDecksPosition({
+            color = color
+          })
           local drawDeckPosition = getDrawDeckPosition({
             color = color
           })
@@ -3583,6 +4570,13 @@ function handleNeowEffects(effects, color)
               x = discardDeckPosition.x,
               y = discardDeckPosition.y - 2.5,
               z = discardDeckPosition.z
+            })
+          })
+          table.insert(tableSnapPoints, {
+            position = tableObject.positionToLocal({
+              x = deckPosition.x,
+              y = deckPosition.y - 2.2,
+              z = deckPosition.z
             })
           })
           tableObject.setSnapPoints(tableSnapPoints)
@@ -3619,8 +4613,6 @@ function handleNeowEffects(effects, color)
               OBJECTS.discardScriptingZoneToPlayer[zone.guid] = color
             end
           })
-          playerStarterDeck.setPositionSmooth(drawDeckPosition)
-          playerStarterDeck.interactable = true
 
           local playingColors = getPlayingColors()
           local colorsDoneNeowBonus = {}
@@ -3630,7 +4622,9 @@ function handleNeowEffects(effects, color)
             end
           end
           if #playingColors == #colorsDoneNeowBonus then
-            startFirstEncounter()
+            startFirstEncounter({
+              waitCount = maxWaitCount
+            })
           end
         end
       })
@@ -3763,6 +4757,30 @@ function setupPlayers(arguments)
     if DEBUG_ONLY_GAIN_COLORLESS_NEOW then
       filterNeowDeck({
         effectType = EFFECT_TYPES.GAIN_COLORLESS_CARD
+      })
+    end
+
+    if DEBUG_ONLY_UPGRADE_CARD_NEOW then
+      filterNeowDeck({
+        effectType = EFFECT_TYPES.UPGRADE_CARD
+      })
+    end
+
+    if DEBUG_ONLY_REMOVE_CARD_NEOW then
+      filterNeowDeck({
+        effectType = EFFECT_TYPES.REMOVE_CARD
+      })
+    end
+
+    if DEBUG_ONLY_RARE_CARD_NEOW then
+      filterNeowDeck({
+        effectType = EFFECT_TYPES.GAIN_RARE_CARD
+      })
+    end
+
+    if DEBUG_ONLY_TRANSFORM_NEOW then
+      filterNeowDeck({
+        effectType = EFFECT_TYPES.TRANSFORM_CARD
       })
     end
 
@@ -4013,12 +5031,12 @@ function gainCard(arguments)
   local color = arguments.color
   local guid = arguments.guid
 
-  local drawDeckPosition = getDrawDeckPosition({
+  local deckPosition = getDecksPosition({
     color = color
   })
   local card = getObjectFromGUID(guid)
   card.flip()
-  card.setPositionSmooth(drawDeckPosition)
+  card.setPositionSmooth(deckPosition)
 end
 
 function onOptionalGainRelic(arguments)
