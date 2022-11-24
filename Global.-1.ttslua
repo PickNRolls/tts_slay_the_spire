@@ -1877,7 +1877,7 @@ function getDecksPosition(arguments)
   local boardBounds = characterBoard.getBoundsNormalized()
 
   return {
-    x = handZonePosition.x - boardBounds.size.x / 2 - 1.2,
+    x = handZonePosition.x - boardBounds.size.x / 2 - 1.6,
     y = handZonePosition.y,
     z = handZonePosition.z + 16
   }
@@ -3837,13 +3837,14 @@ end
 
 function getPotionCombatPosition(arguments)
   local color = arguments.color
+  local index = arguments.index
   local board = getObjectFromGUID(OBJECTS.characterBoards[GAME_DATA.players[color].character])
   local boardPosition = board.getPosition()
   local boardBounds = board.getBounds()
   return {
-    x = boardPosition.x - boardBounds.size.x / 2,
+    x = boardPosition.x - boardBounds.size.x / 2 + 0.9 + 2 * index,
     y = boardPosition.y,
-    z = boardPosition.z + boardBounds.size.z / 2 + 1
+    z = boardPosition.z + boardBounds.size.z / 2 + 1.5
   }
 end
 
@@ -3871,12 +3872,61 @@ function getPlayerPotions(arguments)
     if tags ~= nil then
       for _, tag in ipairs(tags) do
         if tag == "Potion" then
-          table.insert(potions, object.name)
+          local name = object.name
+          if object.getName ~= nil then
+            name = object.getName()
+          end
+          table.insert(potions, name)
         end
       end
     end
   end
   return potions
+end
+
+function movePlayerPotions(arguments)
+  local color = arguments.color
+  local toCombat = arguments.toCombat
+
+  local zone = nil
+  if toCombat then
+    zone = getObjectFromGUID(OBJECTS.playerOutOfCombatPotionScriptingZones[color])
+  else
+    zone = getObjectFromGUID(OBJECTS.playerCombatPotionScriptingZones[color])
+  end
+  local objects = zone.getObjects()
+  if objects[1] ~= nil and objects[1].name == "Deck" then
+    local deck = getObjectFromGUID(objects[1].guid)
+    local cards = deck.getObjects()
+    local cardsCount = #cards
+    local index = 0
+    while index ~= cardsCount - 1 do
+      deck.takeObject({
+        flip = false,
+        guid = cards[index + 1].guid,
+        position = getPotionCombatPosition({
+          color = color,
+          index = index
+        })
+      })
+      index = index + 1
+    end
+    local remainingCard = getObjectFromGUID(cards[cardsCount].guid)
+    remainingCard.setPositionSmooth(
+      getPotionCombatPosition({
+        color = color,
+        index = cardsCount - 1
+      })
+    )
+  elseif objects[1] ~= nil then
+    local card = getObjectFromGUID(objects[1].guid)
+    card.setPositionSmooth(
+      getPotionCombatPosition({
+        color = color,
+        index = 0
+      })
+    )
+  end
 end
 
 function handleGainRandomPotionEffect(arguments)
@@ -4623,84 +4673,97 @@ function getDeck(arguments)
 end
 
 function setupEncounter(arguments)
-  local bag = arguments.bag
-  local map = arguments.map
-  local act = arguments.act
-  local mapPosition = map.getPosition()
-  local mapBounds = map.getBounds()
+  function setupEncounterCoroutine()
+    local bag = arguments.bag
+    local map = arguments.map
+    local act = arguments.act
+    local mapPosition = map.getPosition()
+    local mapBounds = map.getBounds()
 
-  GAME_DATA.combat.inProgress = true
-  local playingColors = getPlayingColors()
-  for index, color in ipairs(playingColors) do
-    local deck = getDeck({ color = color })
-    local drawDeckPosition = getDrawDeckPosition({
-      color = color
-    })
-    deck.setPositionSmooth(drawDeckPosition)
-    deck.shuffle()
-  end
-
-  bag.takeObject({
-    index = 0,
-    rotation = {
-      x = 0,
-      y = 180,
-      z = 180
-    },
-    position = {
-      x = mapPosition.x + mapBounds.size.x / 2 + 2,
-      y = mapPosition.y + mapBounds.size.y,
-      z = mapPosition.z + mapBounds.size.z / 2 - 1.4
-    },
-    callback_function = function(deck)
-      deck.shuffle()
-      local characterPositions = getMapCharacterPositions({
-        mapObject = map
+    GAME_DATA.combat.inProgress = true
+    local playingColors = getPlayingColors()
+    for index, color in ipairs(playingColors) do
+      local deck = getDeck({ color = color })
+      local drawDeckPosition = getDrawDeckPosition({
+        color = color
       })
-      local playingColors = getPlayingColors()
-      for index, color in ipairs(playingColors) do
-        deck.takeObject({
-          flip = true,
-          position = {
-            x = characterPositions[index].x + 4,
-            y = characterPositions[index].y,
-            z = characterPositions[index].z + 0.7
-          },
-          callback_function = function(card)
-            local cardName = card.getName()
-            local cardTag = card.getTags()[1]
-            local cardStats = getEnemyStats({
-              act = act,
-              tag = cardTag,
-              name = cardName
-            })
-            GAME_DATA.combat.encountersSetup = GAME_DATA.combat.encountersSetup + 1
+      deck.setPositionSmooth(drawDeckPosition)
+      deck.shuffle()
+    end
 
-            if cardStats.summons ~= nil and #cardStats.summons > 0 then
-              queueSummonFor({
+    bag.takeObject({
+      index = 0,
+      rotation = {
+        x = 0,
+        y = 180,
+        z = 180
+      },
+      position = {
+        x = mapPosition.x + mapBounds.size.x / 2 + 2,
+        y = mapPosition.y + mapBounds.size.y,
+        z = mapPosition.z + mapBounds.size.z / 2 - 1.4
+      },
+      callback_function = function(deck)
+        deck.shuffle()
+        local characterPositions = getMapCharacterPositions({
+          mapObject = map
+        })
+        local playingColors = getPlayingColors()
+        for index, color in ipairs(playingColors) do
+          deck.takeObject({
+            flip = true,
+            position = {
+              x = characterPositions[index].x + 4,
+              y = characterPositions[index].y,
+              z = characterPositions[index].z + 0.7
+            },
+            callback_function = function(card)
+              local cardName = card.getName()
+              local cardTag = card.getTags()[1]
+              local cardStats = getEnemyStats({
                 act = act,
+                tag = cardTag,
+                name = cardName
+              })
+              GAME_DATA.combat.encountersSetup = GAME_DATA.combat.encountersSetup + 1
+
+              if cardStats.summons ~= nil and #cardStats.summons > 0 then
+                queueSummonFor({
+                  act = act,
+                  cardGuid = card.guid,
+                  row = index,
+                  index = 1
+                })
+              end
+
+              afterEnemySpawns({
                 cardGuid = card.guid,
                 row = index,
-                index = 1
+                index = 1,
               })
-            end
 
-            afterEnemySpawns({
-              cardGuid = card.guid,
-              row = index,
-              index = 1,
-            })
-
-            if GAME_DATA.combat.encountersSetup == #getPlayingColors() then
-              handleSummon()
-              startCombatLoop()
+              if GAME_DATA.combat.encountersSetup == #getPlayingColors() then
+                handleSummon()
+                startCombatLoop()
+              end
             end
-          end
-        })
+          })
+        end
+        bag.putObject(deck)
       end
-      bag.putObject(deck)
+    })
+
+    waitFrames(100)
+    for _, color in ipairs(playingColors) do
+      movePlayerPotions({
+        color = color,
+        toCombat = true
+      })
     end
-  })
+
+    return 1
+  end
+  startLuaCoroutine(self, "setupEncounterCoroutine")
 end
 
 function setupFirstEncounter(arguments)
@@ -4747,25 +4810,50 @@ end
 
 function setupPlayerPotionZone(arguments)
   local color = arguments.color
-  local dropPosition = getPotionOutOfCombatPosition({
+  local dropOutOfCombatPosition = getPotionOutOfCombatPosition({
     color = color
   })
-  local position = {
-    x = dropPosition.x,
-    y = dropPosition.y - 2.3,
-    z = dropPosition.z
+  local outOfCombatPosition = {
+    x = dropOutOfCombatPosition.x,
+    y = dropOutOfCombatPosition.y - 2.3,
+    z = dropOutOfCombatPosition.z
   }
   local tableObject = Tables.getTableObject()
   local snapPoints = tableObject.getSnapPoints()
   table.insert(snapPoints, {
-    position = tableObject.positionToLocal(position)
+    position = tableObject.positionToLocal(outOfCombatPosition)
   })
+  for _, index in ipairs({0, 1, 2}) do
+    table.insert(snapPoints, {
+      position = tableObject.positionToLocal(getPotionCombatPosition({
+        color = color,
+        index = index
+      }))
+    })
+  end
   tableObject.setSnapPoints(snapPoints)
+
+  spawnObject({
+    type = "ScriptingTrigger",
+    position = getPotionCombatPosition({
+      color = color,
+      index = 1
+    }),
+    scale = {
+      x = 6,
+      y = 0.3,
+      z = 2.7
+    },
+    callback_function = function(zone)
+      OBJECTS.playerCombatPotionScriptingZones[color] = zone.guid
+      OBJECTS.combatPotionScriptingZoneToPlayer[zone.guid] = color
+    end
+  })
 
   local potionDeck = getObjectFromGUID(OBJECTS.potionDeck)
   spawnObject({
     type = "ScriptingTrigger",
-    position = position,
+    position = outOfCombatPosition,
     scale = potionDeck.getBounds().size,
     callback_function = function(zone)
       OBJECTS.playerOutOfCombatPotionScriptingZones[color] = zone.guid
