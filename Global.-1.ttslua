@@ -9,6 +9,7 @@ DEBUG_ONLY_RANDOM_RARE_NEOW = false
 DEBUG_ONLY_UPGRADE_RANDOM_CARD_NEOW = false
 DEBUG_ONLY_RANDOM_CARD_NEOW = false
 DEBUG_ONLY_RANDOM_COLORLESS_NEOW = false
+DEBUG_ONLY_POTION_NEOW = true
 
 CHARACTERS = {"Ironclad", "Silent", "Defect", "Watcher"}
 
@@ -235,6 +236,20 @@ OBJECTS = {
     Pink = nil
   },
   transformCardScriptingZoneToPlayer = {},
+  playerOutOfCombatPotionScriptingZones = {
+    Red = nil,
+    Green = nil,
+    Blue = nil,
+    Pink = nil
+  },
+  outOfCombatPotionScriptingZoneToPlayer = {},
+  playerCombatPotionScriptingZones = {
+    Red = nil,
+    Green = nil,
+    Blue = nil,
+    Pink = nil
+  },
+  combatPotionScriptingZoneToPlayer = {},
 
   boot = "d4e0e6",
   goldBag1 = "3c7af8",
@@ -245,6 +260,7 @@ OBJECTS = {
   relicsDeck = "789dfc",
   curseDeck = "2987a7",
   colorlessDeck = "8049ab",
+  potionDeck = "860f93",
 
   actMaps = {
     "0b5712",
@@ -3807,6 +3823,113 @@ function handleGainRandomColorlessCardEffect(arguments)
   })
 end
 
+function getPotionOutOfCombatPosition(arguments)
+  local color = arguments.color
+  local deckPosition = getDecksPosition({
+    color = color
+  })
+  return {
+    x = deckPosition.x,
+    y = deckPosition.y,
+    z = deckPosition.z - 4
+  }
+end
+
+function getPotionCombatPosition(arguments)
+  local color = arguments.color
+  local board = getObjectFromGUID(OBJECTS.characterBoards[GAME_DATA.players[color].character])
+  local boardPosition = board.getPosition()
+  local boardBounds = board.getBounds()
+  return {
+    x = boardPosition.x - boardBounds.size.x / 2,
+    y = boardPosition.y,
+    z = boardPosition.z + boardBounds.size.z / 2 + 1
+  }
+end
+
+function getPlayerPotions(arguments)
+  local color = arguments.color
+  local isCombat = GAME_DATA.combat.inProgress
+  local zone = nil
+  if isCombat then
+    zone = getObjectFromGUID(OBJECTS.playerCombatPotionScriptingZones[color])
+  else
+    zone = getObjectFromGUID(OBJECTS.playerOutOfCombatPotionScriptingZones[color])
+  end
+  local objects = zone.getObjects()
+  local potions = {}
+  if objects[1] ~= nil and objects[1].name == "Deck" then
+    objects = objects[1].getObjects()
+  end
+  for index, object in ipairs(objects) do
+    local tags = nil
+    if object.getTags ~= nil then
+      tags = object.getTags()
+    else
+      tags = object.tags
+    end
+    if tags ~= nil then
+      for _, tag in ipairs(tags) do
+        if tag == "Potion" then
+          table.insert(potions, object.name)
+        end
+      end
+    end
+  end
+  return potions
+end
+
+function handleGainRandomPotionEffect(arguments)
+  local color = arguments.color
+  local amount = arguments.amount or 1
+  local onDone = arguments.onDone
+  local potionDeck = getObjectFromGUID(OBJECTS.potionDeck)
+  local isCombat = GAME_DATA.combat.inProgress
+  local currentPotions = getPlayerPotions({
+    color = color
+  })
+  local currentPotionsCount = #currentPotions
+  local realAmount = math.min(3 - currentPotionsCount, amount)
+
+  if realAmount <= 0 then
+    if onDone ~= nil then
+      onDone()
+    end
+  end
+
+  if isCombat then
+    local combatPosition = getPotionCombatPosition({
+      color = color
+    })
+    potionDeck.takeObject({
+      position = combatPosition,
+    })
+  else
+    local outOfCombatPosition = getPotionOutOfCombatPosition({
+      color = color
+    })
+    local index = 0
+    local done = 0
+    while index < realAmount do
+      potionDeck.takeObject({
+        flip = true,
+        position = {
+          x = outOfCombatPosition.x,
+          y = outOfCombatPosition.y + 1 * index,
+          z = outOfCombatPosition.z
+        },
+        callback_function = function(card)
+          done = done + 1
+          if done == realAmount and onDone ~= nil then
+            onDone()
+          end
+        end
+      })
+      index = index + 1
+    end
+  end
+end
+
 function handleEffect(arguments)
   function handleEffectCoroutine()
     local effect = arguments.effect
@@ -3923,6 +4046,15 @@ function handleEffect(arguments)
 
       if effect.type == EFFECT_TYPES.GAIN_COLORLESS_CARD then
         handleGainColorlessCardEffect({
+          color = color,
+          amount = amount,
+          onDone = onDone
+        })
+        return 1
+      end
+
+      if effect.type == EFFECT_TYPES.GAIN_RANDOM_POTION then
+        handleGainRandomPotionEffect({
           color = color,
           amount = amount,
           onDone = onDone
@@ -4608,9 +4740,36 @@ function setupPlayerBoardZone(arguments)
     },
     scale = playerBoardBounds.size,
     callback_function = function(zone)
-      local bounds = zone.getBounds()
-      local position = zone.getPosition()
       OBJECTS.playerBoardScriptingZones[color] = zone.guid
+    end
+  })
+end
+
+function setupPlayerPotionZone(arguments)
+  local color = arguments.color
+  local dropPosition = getPotionOutOfCombatPosition({
+    color = color
+  })
+  local position = {
+    x = dropPosition.x,
+    y = dropPosition.y - 2.3,
+    z = dropPosition.z
+  }
+  local tableObject = Tables.getTableObject()
+  local snapPoints = tableObject.getSnapPoints()
+  table.insert(snapPoints, {
+    position = tableObject.positionToLocal(position)
+  })
+  tableObject.setSnapPoints(snapPoints)
+
+  local potionDeck = getObjectFromGUID(OBJECTS.potionDeck)
+  spawnObject({
+    type = "ScriptingTrigger",
+    position = position,
+    scale = potionDeck.getBounds().size,
+    callback_function = function(zone)
+      OBJECTS.playerOutOfCombatPotionScriptingZones[color] = zone.guid
+      OBJECTS.outOfCombatPotionScriptingZoneToPlayer[zone.guid] = color
     end
   })
 end
@@ -4906,8 +5065,17 @@ function setupPlayers(arguments)
       })
     end
 
+    if DEBUG_ONLY_POTION_NEOW then
+      filterNeowDeck({
+        effectType = EFFECT_TYPES.GAIN_RANDOM_POTION
+      })
+    end
+
     for index, color in ipairs(players) do
       setupPlayerDecks({
+        color = color
+      })
+      setupPlayerPotionZone({
         color = color
       })
       local characterBoard = getObjectFromGUID(OBJECTS.characterBoards[GAME_DATA.players[color].character])
@@ -5322,6 +5490,8 @@ function startGame()
   relicsDeck.shuffle()
   local colorlessDeck = getObjectFromGUID(OBJECTS.colorlessDeck)
   colorlessDeck.shuffle()
+  local potionDeck = getObjectFromGUID(OBJECTS.potionDeck)
+  potionDeck.shuffle()
 
   setupAct({
     act = GAME_DATA.act
