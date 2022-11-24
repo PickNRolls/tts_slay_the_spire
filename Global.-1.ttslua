@@ -9,7 +9,8 @@ DEBUG_ONLY_RANDOM_RARE_NEOW = false
 DEBUG_ONLY_UPGRADE_RANDOM_CARD_NEOW = false
 DEBUG_ONLY_RANDOM_CARD_NEOW = false
 DEBUG_ONLY_RANDOM_COLORLESS_NEOW = false
-DEBUG_ONLY_POTION_NEOW = true
+DEBUG_ONLY_POTION_NEOW = false
+DEBUG_DIE_ABILITIES = true
 
 CHARACTERS = {"Ironclad", "Silent", "Defect", "Watcher"}
 
@@ -44,8 +45,10 @@ GAME_DATA = {
     encountersSetup = 0,
     summonQueue = {},
     turn = TURN_TYPES.PLAYERS,
+    turnCount = 1,
     phase = nil,
     playingCard = nil,
+    dieResult = nil,
     players = {
       Red = {
         energy = 3,
@@ -261,6 +264,7 @@ OBJECTS = {
   curseDeck = "2987a7",
   colorlessDeck = "8049ab",
   potionDeck = "860f93",
+  dice = "4d8f9b",
 
   actMaps = {
     "0b5712",
@@ -1850,6 +1854,125 @@ local NEOW_BLESSING_DATA = {
         }
       }
     }
+}
+
+ABILITY_TRIGGER_TYPES = {
+  DIE_RESULT = "Die result",
+  START_OF_COMBAT = "Start of combat",
+  START_OF_TURN = "Start of turn",
+  ONCE_PER_TURN = "Once per turn",
+  END_OF_TURN = "End of turn",
+  END_OF_COMBAT = "End of combat",
+  ONCE_PER_COMBAT = "Once per combat",
+  ONCE_PER_ROOM = "Once per room",
+  WHEN_REST = "When rest",
+  AT_EVENT = "At event",
+  AT_CAMP = "At camp",
+  WHEN_DRAW_CURSE = "When draw curse",
+  WHEN_ADD_SKILL = "When add skill",
+  WHEN_ADD_ATTACK = "When add attack",
+  N_TIMES_PER_COMBAT = "N times per combat"
+}
+
+RELICS_DATA = {
+
+}
+
+ABILITY_TRIGGER_TO_RELIC = {
+  [ABILITY_TRIGGER_TYPES.WHEN_DRAW_CURSE] = {
+    "Du-Vu Doll",
+  },
+  [ABILITY_TRIGGER_TYPES.DIE_RESULT] = {
+    "Incense Burner",
+    "Stone Calendar",
+    "Captain's Wheel",
+    "Sundial",
+    "Necronomicon",
+    "Vajra",
+    "Pocketwatch",
+    "Tungsten Rod",
+    "Oddly Smooth Stone",
+    "Pen Nib",
+    "Red Mask",
+    "Happy Flower",
+    "Ink Bottle",
+    "Mercury Hourglass",
+    "The Boot",
+    "Horn Cleat",
+    "Dolly's Mirror",
+    "Nilry's Codex",
+    "Duality",
+    "Gremlin Horn",
+    "Snecko Eye",
+  },
+  [ABILITY_TRIGGER_TYPES.ONCE_PER_COMBAT] = {
+    "Runic Pyramid",
+    "Dead Branch",
+    "Calipers",
+    "Ornamental Fan",
+    "Letter Opener",
+    "Blue Candle",
+    "Ninja Scroll",
+    "Akabeko",
+    "Centennial Puzzle",
+    "Mummified Hand",
+    "The Courier",
+  },
+  [ABILITY_TRIGGER_TYPES.START_OF_COMBAT] = {
+    "Mutagen",
+    "Anchor",
+    "Bag of Preparation",
+    "Lantern",
+    "Blood Vial",
+  },
+  [ABILITY_TRIGGER_TYPES.START_OF_TURN] = {
+    "Ice Cream",
+    "Fusion Hammer",
+    "Ectoplasm",
+    "Ring of the Serpent",
+    "Coffee Dripper",
+    "Sozu",
+  },
+  [ABILITY_TRIGGER_TYPES.END_OF_TURN] = {
+    "Orichalcum",
+    "Thread and Needle",
+  },
+  [ABILITY_TRIGGER_TYPES.END_OF_COMBAT] = {
+    "Golden Idol",
+    "Black Blood",
+    "White Beast Statue",
+  },
+  [ABILITY_TRIGGER_TYPES.ONCE_PER_TURN] = {
+    "Strike Dummy",
+  },
+  [ABILITY_TRIGGER_TYPES.ONCE_PER_ROOM] = {
+    "Gambling Chip",
+    "Toolbox",
+    "The Abacus",
+  },
+  [ABILITY_TRIGGER_TYPES.AT_EVENT] = {
+    "Ssserpent Head",
+    "Juzu Bracelet",
+  },
+  [ABILITY_TRIGGER_TYPES.WHEN_REST] = {
+    "Peace Pipe",
+    "Regal Pillow",
+  },
+  [ABILITY_TRIGGER_TYPES.WHEN_ADD_SKILL] = {
+    "Toxic Egg"
+  },
+  [ABILITY_TRIGGER_TYPES.WHEN_ADD_ATTACK] = {
+    "Molten Egg"
+  },
+  [ABILITY_TRIGGER_TYPES.N_TIMES_PER_COMBAT] = {
+    "Nuclear Battery"
+  }
+}
+
+RELIC_HANDLERS = {
+  ["Incense Burner"] = function()
+    print("Hello")
+  end,
 }
 
 function waitFrames(frames) --This function can only be used inside a coroutine because it is using coroutine.yield()
@@ -3595,10 +3718,16 @@ function handleGainRelicEffect(arguments)
   local amount = arguments.amount or 1
   local onDone = arguments.onDone
 
+  local chooseAmount = 1
+  if DEBUG_DIE_ABILITIES then
+    amount = 10
+    chooseAmount = 3
+  end
+
   repeatPrepareAreaForOptionalGain(amount, {
     color = color,
     deck = OBJECTS.relicsDeck,
-    amount = 1,
+    amount = chooseAmount,
     tag = TAG_TYPES.RELIC,
     onDone = onDone
   })
@@ -3619,7 +3748,7 @@ function handleGainCurseEffect(arguments)
   })
 
   if onDone ~= nil then
-    onDone()
+    onDone(450)
   end
 end
 
@@ -4480,6 +4609,12 @@ function setTurn(arguments)
   GAME_DATA.combat.turn = turn
 end
 
+function setTurnCount(arguments)
+  local turnCount = arguments.turnCount
+
+  GAME_DATA.combat.turnCount = turnCount
+end
+
 function isCombatDone(arguments)
   local combat = arguments.combat
   local players = arguments.players
@@ -4620,45 +4755,161 @@ function startCombatPlayPhase()
   })
 end
 
-function startCombatStartTurnPhase()
+function moveDiceToInitialPosition()
+  local dice = getObjectFromGUID(OBJECTS.dice)
+  dice.setPositionSmooth({
+    x = 15,
+    y = 3,
+    z = 5
+  })
+end
+
+function rollDice(callback)
+  function rollDiceCoroutine()
+    local dice = getObjectFromGUID(OBJECTS.dice)
+    while dice.isSmoothMoving() do
+      waitFrames(50)
+    end
+    dice.roll()
+    while not dice.resting do
+      waitFrames(50)
+    end
+    local value = dice.getValue()
+    GAME_DATA.combat.dieResult = value
+    callback()
+    return 1
+  end
+  startLuaCoroutine(self, "rollDiceCoroutine")
+end
+
+function onObjectRandomize(object)
+  myLog(object.name)
+  if object.name ~= "Dice" then
+    return
+  end
+
+end
+
+function handleStartOfCombatAbilities(callback)
+  callback()
+end
+
+function handleStartOfTurnAbilities(callback)
+  callback()
+end
+
+function handleDieResultAbilities(callback)
+  local playingColors = getPlayingColors()
+
+  callback()
+end
+
+function startCombatStartTurnPhase(onDone)
   setCombatPhase({
     phase = TURN_PHASE_TYPES.START_OF_TURN
   })
-  function startCombatStartTurnPhaseCoroutine()
-    local colors = getPlayingColors()
-    local _players = Player.getPlayers()
-    local players = {}
-    for index, color in ipairs(colors) do
-      for _, player in ipairs(_players) do
-        if player.color == color then
-          players[color] = player
-        end
+  local colors = getPlayingColors()
+  local _players = Player.getPlayers()
+  local players = {}
+  for index, color in ipairs(colors) do
+    for _, player in ipairs(_players) do
+      if player.color == color then
+        players[color] = player
       end
     end
-
-    for index, color in ipairs(colors) do
-      local playerObject = players[color]
-      setEnergyForPlayer(color, 3)
-      setBlockForPlayer(color, 0)
-      drawCards({
-        color = color,
-        amount = 5
-      })
-    end
-
-    startCombatPlayPhase()
-
-    return 1
   end
 
-  startLuaCoroutine(self, "startCombatStartTurnPhaseCoroutine")
+  for index, color in ipairs(colors) do
+    local playerObject = players[color]
+    setEnergyForPlayer(color, 3)
+    setBlockForPlayer(color, 0)
+    drawCards({
+      color = color,
+      amount = 5
+    })
+  end
+
+  rollDice(function()
+    local value = GAME_DATA.combat.dieResult
+    broadcastToAll("Dice is rolled, value is "..value)
+    if value == 1 then
+      print(
+        "+-------+\n"..
+        "|            |\n"..
+        "|     +     |\n"..
+        "|            |\n"..
+        "+-------+"
+      )
+    end
+    if value == 2 then
+      print(
+        "+-------+\n"..
+        "|        +  |\n"..
+        "|            |\n"..
+        "|  +        |\n"..
+        "+-------+"
+      )
+    end
+    if value == 3 then
+      print(
+        "+-------+\n"..
+        "|        +  |\n"..
+        "|     +     |\n"..
+        "|  +        |\n"..
+        "+-------+"
+      )
+    end
+    if value == 4 then
+      print(
+        "+--------+\n"..
+        "|  +     +  |\n"..
+        "|             |\n"..
+        "|  +     +  |\n"..
+        "+--------+"
+      )
+    end
+    if value == 5 then
+      print(
+        "+--------+\n"..
+        "|  +     +  |\n"..
+        "|     +      |\n"..
+        "|  +     +  |\n"..
+        "+--------+"
+      )
+    end
+    if value == 6 then
+      print(
+        "+--------+\n"..
+        "|  +     +  |\n"..
+        "|  +     +  |\n"..
+        "|  +     +  |\n"..
+        "+--------+"
+      )
+    end
+
+    function dieAbilitiesCallback()
+      handleDieResultAbilities(onDone)
+    end
+
+    function startOfTurnCallback()
+      handleStartOfTurnAbilities(dieAbilitiesCallback)
+    end
+
+    if GAME_DATA.combat.turnCount == 1 then
+      handleStartOfCombatAbilities(startOfTurnCallback)
+    else
+      startOfTurnCallback()
+    end
+  end)
 end
 
 function startCombatPlayersTurn()
   setTurn({
     turn = TURN_TYPES.PLAYERS
   })
-  startCombatStartTurnPhase()
+  startCombatStartTurnPhase(function()
+    startCombatPlayPhase()
+  end)
 end
 
 function startCombatLoop()
@@ -4744,6 +4995,10 @@ function setupEncounter(arguments)
 
               if GAME_DATA.combat.encountersSetup == #getPlayingColors() then
                 handleSummon()
+                setTurnCount({
+                  turnCount = 1
+                })
+                moveDiceToInitialPosition()
                 startCombatLoop()
               end
             end
@@ -5093,7 +5348,7 @@ function setupPlayers(arguments)
       })
     end
 
-    if DEBUG_ONLY_GAIN_RELIC_NEOW then
+    if DEBUG_ONLY_GAIN_RELIC_NEOW or DEBUG_DIE_ABILITIES then
       filterNeowDeck({
         effectType = EFFECT_TYPES.GAIN_RELIC
       })
@@ -5495,6 +5750,15 @@ function onObjectPickUp(color, object)
           guid = object.guid
         })
       end
+    end
+  end
+
+  local isCombat = GAME_DATA.combat.inProgress
+  if isCombat then
+    local isNotPlayPhase = GAME_DATA.combat.phase ~= TURN_PHASE_TYPES.PLAY
+    if isNotPlayPhase then
+      broadcastToColor("You can play items only in play phase", color)
+      object.drop()
     end
   end
 end
