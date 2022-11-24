@@ -5,6 +5,10 @@ DEBUG_ONLY_UPGRADE_CARD_NEOW = false
 DEBUG_ONLY_REMOVE_CARD_NEOW = false
 DEBUG_ONLY_RARE_CARD_NEOW = false
 DEBUG_ONLY_TRANSFORM_NEOW = false
+DEBUG_ONLY_RANDOM_RARE_NEOW = false
+DEBUG_ONLY_UPGRADE_RANDOM_CARD_NEOW = false
+DEBUG_ONLY_RANDOM_CARD_NEOW = false
+DEBUG_ONLY_RANDOM_COLORLESS_NEOW = false
 
 CHARACTERS = {"Ironclad", "Silent", "Defect", "Watcher"}
 
@@ -2442,6 +2446,9 @@ function removeButtonWithFunctionName(arguments)
   local object = arguments.object
   local name = arguments.name
   local buttons = object.getButtons()
+  if buttons == nil then
+    return
+  end
   for _, button in ipairs(buttons) do
     if button.click_function == name then
       object.removeButton(button.index)
@@ -2684,27 +2691,35 @@ function handleUpgradeCardClickPink(_, clickColor)
   })
 end
 
-function prepareAreaForCards(arguments)
+function getPlayerAreaPosition(arguments)
   local color = arguments.color
-  local playerToZone = arguments.playerToZone
-  local zoneToPlayer = arguments.zoneToPlayer
-  local clickFunctionPrefix = arguments.clickFunctionPrefix
-  local label = arguments.label
   local board = getObjectFromGUID(OBJECTS.characterBoards[GAME_DATA.players[color].character])
   local boardPosition = board.getPosition()
   local drawPosition = getDrawDeckPosition({
     color = color
   })
+  return {
+    x = boardPosition.x,
+    y = boardPosition.y,
+    z = drawPosition.z - 4
+  }
+end
+
+function prepareAreaForCards(arguments)
+  local color = arguments.color
+  local hideButton = arguments.hideButton
+  local playerToZone = arguments.playerToZone
+  local zoneToPlayer = arguments.zoneToPlayer
+  local clickFunctionPrefix = arguments.clickFunctionPrefix
+  local label = arguments.label
   local areaBounds = {
     x = 12,
     y = 0.3,
     z = 3.3
   }
-  local areaPosition = {
-    x = boardPosition.x,
-    y = boardPosition.y,
-    z = drawPosition.z - 4
-  }
+  local areaPosition = getPlayerAreaPosition({
+    color = color
+  })
 
   local tableObject = Tables.getTableObject()
   local tableSnapPoints = tableObject.getSnapPoints()
@@ -2725,25 +2740,28 @@ function prepareAreaForCards(arguments)
       zoneToPlayer[zone.guid] = color
     end
   })
-  local clickFunction = clickFunctionPrefix..color
-  tableObject.createButton({
-    click_function = clickFunction,
-    function_owner = self,
-    label = label,
-    position = tableObject.positionToLocal({
-      x = -areaPosition.x,
-      y = areaPosition.y,
-      z = areaPosition.z - 2.5,
-    }),
-    rotation = { 0, 180, 0 },
-    width = 1200,
-    height = 100,
-    font_size = 100,
-    scale = { 1, 1, 1 }
-  })
+  if not hideButton then
+    local clickFunction = clickFunctionPrefix..color
+    tableObject.createButton({
+      click_function = clickFunction,
+      function_owner = self,
+      label = label,
+      position = tableObject.positionToLocal({
+        x = -areaPosition.x,
+        y = areaPosition.y,
+        z = areaPosition.z - 2.5,
+      }),
+      rotation = { 0, 180, 0 },
+      width = 1200,
+      height = 100,
+      font_size = 100,
+      scale = { 1, 1, 1 }
+    })
+  end
 end
 
 function prepareAreaForCardUpgrade(arguments)
+  local hideButton = arguments.hideButton or false
   local color = arguments.color
   local amount = arguments.amount or 1
   local onDone = arguments.onDone
@@ -2763,6 +2781,7 @@ function prepareAreaForCardUpgrade(arguments)
     label = label..amount.." cards max)"
   end
   prepareAreaForCards({
+    hideButton = hideButton,
     color = color,
     label = label,
     playerToZone = OBJECTS.playerUpgradeCardScriptingZones,
@@ -3625,6 +3644,169 @@ function handleTransformCardEffect(arguments)
   })
 end
 
+function gainRandomCardFromDeck(arguments)
+  local color = arguments.color
+  local onDone = arguments.onDone
+  local deck = arguments.deck
+  local takeObject = deck.takeObject
+  if deck.guid == OBJECTS.characterDecks[GAME_DATA.players[color].character].rewardsDeck then
+    takeObject = takeRewardCard
+  end
+  function gainRandomCardFromDeckCoroutine()
+    local amount = arguments.amount or 1
+    local deckPosition = getDecksPosition({ color = color })
+    local areaPosition = getPlayerAreaPosition({ color = color })
+    local cardSizeX = deck.getBounds().size.x
+
+    local middleIndex = math.floor(amount / 2)
+    local isOdd = amount % 2 > 0
+    local offsetStep = 3
+    local index = 0
+    local guids = {}
+    local cardsDone = 0
+    while index ~= amount do
+      local offsetX = 0
+      if isOdd then
+        offsetX = (index - middleIndex) * offsetStep
+      else
+        local sign = -1
+        local middle = math.floor(amount / 2) - 1
+        if index >= middleIndex then
+          sign = 1
+          middle = middleIndex
+        end
+        local isMiddle = index == middleIndex or index == middleIndex - 1
+        if isMiddle then
+          offsetX = sign * (offsetStep / 2)
+        else
+          offsetX = (index - middle) * offsetStep + sign * (offsetStep / 2)
+        end
+      end
+      takeObject({
+        color = color,
+        position = {
+          x = areaPosition.x + offsetX,
+          y = areaPosition.y,
+          z = areaPosition.z
+        },
+        flip = true,
+        callback_function = function(card, isGolden)
+          cardsDone = cardsDone + 1
+          table.insert(guids, card.guid)
+          if cardsDone == amount then
+            for _, guid in ipairs(guids) do
+              gainCard({
+                color = color,
+                guid = guid
+              })
+            end
+
+            if onDone ~= nil then
+              onDone(400)
+            end
+          end
+        end
+      })
+      index = index + 1
+    end
+
+    return 1
+  end
+
+  startLuaCoroutine(self, "gainRandomCardFromDeckCoroutine")
+end
+
+function handleGainRandomRareCardEffect(arguments)
+  local color = arguments.color
+  local character = GAME_DATA.players[color].character
+  local rareDeck = getObjectFromGUID(OBJECTS.characterDecks[character].rareDeck)
+  gainRandomCardFromDeck({
+    color = color,
+    deck = rareDeck,
+    onDone = arguments.onDone,
+    amount = arguments.amount
+  })
+end
+
+function handleUpgradeRandomCardEffect(arguments)
+  local color = arguments.color
+  local amount = arguments.amount
+  local onDone = arguments.onDone
+  local areaPosition = getPlayerAreaPosition({
+    color = color
+  })
+  local deck = getDeck({ color = color })
+  deck.shuffle()
+
+  prepareAreaForCardUpgrade({
+    hideButton = true,
+    color = color,
+    amount = amount,
+    onDone = function(waitCount)
+      if onDone ~= nil then
+        onDone(450)
+      end
+    end
+  })
+
+  local cards = deck.getObjects()
+  local okGuids = {}
+  for index, card in ipairs(cards) do
+    local isCurse = false
+    for _, tag in ipairs(card.tags) do
+      if tag == "Curse" then
+        isCurse = true
+      end
+    end
+    if not isCurse and not string.find(card.name, "+") then
+      table.insert(okGuids, card.guid)
+    end
+  end
+  local index = 0
+  while index ~= amount and index ~= #okGuids do
+    deck.takeObject({
+      position = {
+        x = areaPosition.x,
+        y = areaPosition.y,
+        z = areaPosition.z
+      },
+      guid = okGuids[index + 1],
+      flip = true
+    })
+    index = index + 1
+  end
+
+  waitFrames(450)
+
+  Global.call("handleUpgradeCardClick", {
+    color = color,
+    colorClicks = color
+  })
+end
+
+function handleGainRandomCardEffect(arguments)
+  local color = arguments.color
+  local character = GAME_DATA.players[color].character
+  local rewardsDeck = getObjectFromGUID(OBJECTS.characterDecks[character].rewardsDeck)
+  gainRandomCardFromDeck({
+    color = color,
+    deck = rewardsDeck,
+    onDone = arguments.onDone,
+    amount = arguments.amount
+  })
+end
+
+function handleGainRandomColorlessCardEffect(arguments)
+  local color = arguments.color
+  local colorlessDeck = getObjectFromGUID(OBJECTS.colorlessDeck)
+  gainRandomCardFromDeck({
+    color = color,
+    deck = colorlessDeck,
+    onDone = arguments.onDone,
+    amount = arguments.amount
+  })
+end
+
 function handleEffect(arguments)
   function handleEffectCoroutine()
     local effect = arguments.effect
@@ -3653,12 +3835,27 @@ function handleEffect(arguments)
       end
 
       if effect.type == EFFECT_TYPES.GAIN_CARD then
-        handleGainCardEffect({ color = color, onDone = onDone })
+        handleGainCardEffect({ amount = amount, color = color, onDone = onDone })
         return 1
       end
 
       if effect.type == EFFECT_TYPES.GAIN_RARE_CARD then
-        handleGainRareCardEffect({ color = color, onDone = onDone })
+        handleGainRareCardEffect({ amount = amount, color = color, onDone = onDone })
+        return 1
+      end
+
+      if effect.type == EFFECT_TYPES.GAIN_RANDOM_RARE_CARD then
+        handleGainRandomRareCardEffect({ amount = amount, color = color, onDone = onDone })
+        return 1
+      end
+
+      if effect.type == EFFECT_TYPES.GAIN_RANDOM_COLORLESS_CARD then
+        handleGainRandomColorlessCardEffect({ amount = amount, color = color, onDone = onDone })
+        return 1
+      end
+
+      if effect.type == EFFECT_TYPES.GAIN_RANDOM_CARD then
+        handleGainRandomCardEffect({ amount = amount, color = color, onDone = onDone })
         return 1
       end
 
@@ -3673,6 +3870,15 @@ function handleEffect(arguments)
 
       if effect.type == EFFECT_TYPES.UPGRADE_CARD then
         handleUpgradeCardEffect({
+          color = color,
+          amount = amount,
+          onDone = onDone
+        })
+        return 1
+      end
+
+      if effect.type == EFFECT_TYPES.UPGRADE_RANDOM_CARD then
+        handleUpgradeRandomCardEffect({
           color = color,
           amount = amount,
           onDone = onDone
@@ -4277,6 +4483,13 @@ function startCombatLoop()
   startCombatPlayersTurn()
 end
 
+function getDeck(arguments)
+  local color = arguments.color
+  local deckZone = getObjectFromGUID(OBJECTS.playerDeckScriptingZones[color])
+  local deckGuid = deckZone.getObjects()[1].guid
+  return getObjectFromGUID(deckGuid)
+end
+
 function setupEncounter(arguments)
   local bag = arguments.bag
   local map = arguments.map
@@ -4287,9 +4500,7 @@ function setupEncounter(arguments)
   GAME_DATA.combat.inProgress = true
   local playingColors = getPlayingColors()
   for index, color in ipairs(playingColors) do
-    local deckZone = getObjectFromGUID(OBJECTS.playerDeckScriptingZones[color])
-    local deckGuid = deckZone.getObjects()[1].guid
-    local deck = getObjectFromGUID(deckGuid)
+    local deck = getDeck({ color = color })
     local drawDeckPosition = getDrawDeckPosition({
       color = color
     })
@@ -4671,6 +4882,30 @@ function setupPlayers(arguments)
       })
     end
 
+    if DEBUG_ONLY_RANDOM_RARE_NEOW then
+      filterNeowDeck({
+        effectType = EFFECT_TYPES.GAIN_RANDOM_RARE_CARD
+      })
+    end
+
+    if DEBUG_ONLY_UPGRADE_RANDOM_CARD_NEOW then
+      filterNeowDeck({
+        effectType = EFFECT_TYPES.UPGRADE_RANDOM_CARD
+      })
+    end
+
+    if DEBUG_ONLY_RANDOM_CARD_NEOW then
+      filterNeowDeck({
+        effectType = EFFECT_TYPES.GAIN_RANDOM_CARD
+      })
+    end
+
+    if DEBUG_ONLY_RANDOM_COLORLESS_NEOW then
+      filterNeowDeck({
+        effectType = EFFECT_TYPES.GAIN_RANDOM_COLORLESS_CARD
+      })
+    end
+
     for index, color in ipairs(players) do
       setupPlayerDecks({
         color = color
@@ -4922,7 +5157,11 @@ function gainCard(arguments)
     color = color
   })
   local card = getObjectFromGUID(guid)
-  card.flip()
+  local rotation = card.getRotation()
+  local isFlipped = rotation.z ~= 180
+  if isFlipped then
+    card.flip()
+  end
   card.setPositionSmooth(deckPosition)
 end
 
