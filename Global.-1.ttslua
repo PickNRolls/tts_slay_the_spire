@@ -1,5 +1,5 @@
 DEBUG_ONLY_LOSE_HP_NEOW = false
-DEBUG_ONLY_GAIN_RELIC_NEOW = false
+DEBUG_ONLY_GAIN_RELIC_NEOW = true
 DEBUG_ONLY_GAIN_COLORLESS_NEOW = false
 DEBUG_ONLY_UPGRADE_CARD_NEOW = false
 DEBUG_ONLY_REMOVE_CARD_NEOW = false
@@ -10,7 +10,17 @@ DEBUG_ONLY_UPGRADE_RANDOM_CARD_NEOW = false
 DEBUG_ONLY_RANDOM_CARD_NEOW = false
 DEBUG_ONLY_RANDOM_COLORLESS_NEOW = false
 DEBUG_ONLY_POTION_NEOW = false
-DEBUG_DIE_ABILITIES = true
+
+DEBUG_RELIC_DRAW_ORDER = {
+  "Horn Cleat",
+  "Incense Burner",
+  "Stone Calendar",
+  "Captain's Wheel",
+}
+DEBUG_USE_RELIC_DRAW_ORDER = true
+DEBUG_GAIN_RELIC_AMOUNT = 3
+
+DEBUG_DICE_VALUE = 5
 
 CHARACTERS = {"Ironclad", "Silent", "Defect", "Watcher"}
 
@@ -48,7 +58,9 @@ GAME_DATA = {
     turnCount = 1,
     phase = nil,
     playingCard = nil,
+    playingTargetRelic = nil,
     dieResult = nil,
+    canTargetRelics = {},
     players = {
       Red = {
         energy = 3,
@@ -87,6 +99,7 @@ GAME_DATA = {
       cardUpgradeInProgress = nil,
       cardRemoveInProgress = nil,
       relics = {},
+      relicsMap = {},
     },
     Green = {
       neowBonusStarted = false,
@@ -96,6 +109,7 @@ GAME_DATA = {
       cardUpgradeInProgress = nil,
       cardRemoveInProgress = nil,
       relics = {},
+      relicsMap = {},
     },
     Blue = {
       neowBonusStarted = false,
@@ -105,6 +119,7 @@ GAME_DATA = {
       cardUpgradeInProgress = nil,
       cardRemoveInProgress = nil,
       relics = {},
+      relicsMap = {},
     },
     Pink = {
       neowBonusStarted = false,
@@ -114,6 +129,7 @@ GAME_DATA = {
       cardUpgradeInProgress = nil,
       cardRemoveInProgress = nil,
       relics = {},
+      relicsMap = {},
     }
   }
 }
@@ -260,7 +276,7 @@ OBJECTS = {
   weakBag = "a0b349",
   blockBag = "ffeff0",
   block5Bag = "44889c",
-  relicsDeck = "789dfc",
+  relicsDeck = "009011",
   curseDeck = "2987a7",
   colorlessDeck = "8049ab",
   potionDeck = "860f93",
@@ -1874,11 +1890,223 @@ ABILITY_TRIGGER_TYPES = {
   N_TIMES_PER_COMBAT = "N times per combat"
 }
 
-RELICS_DATA = {
+function hornCleatHandler(arguments)
+  local color = arguments.color
+  local onDone = arguments.onDone
 
+  local currentBlock = getBlockForPlayer(color)
+  setBlockForPlayer(color, currentBlock + 1)
+  onDone()
+end
+
+RELICS_DATA = {
+  ["Incense Burner"] = {
+    goldCost = 12,
+  },
+  ["Stone Calendar"] = {
+    goldCost = 8,
+    values = {
+      ["5"] = {
+        needsTarget = true,
+        handler = function(arguments)
+          local color = arguments.color
+          local target = arguments.target
+          local onDone = arguments.onDone
+
+          damageEnemy({
+            color = color,
+            target = target,
+            amount = 3
+          })
+          onDone()
+        end
+      }
+    }
+  },
+  ["Captain's Wheel"] = {
+    goldCost = 8,
+  },
+  ["Sundial"] = {
+    goldCost = 7
+  },
+  ["Ice Cream"] = {
+    goldCost = 10,
+  },
+  ["Necronomicon"] = {
+    goldCost = 10,
+  },
+  ["Vajra"] = {
+    goldCost = 8,
+  },
+  ["Pocketwatch"] = {
+    goldCost = 9,
+  },
+  ["Orichalcum"] = {
+    goldCost = 6,
+  },
+  ["Tungsten Rod"] = {
+    goldCost = 8,
+  },
+  ["Oddly Smooth Stone"] = {
+    goldCost = 7,
+  },
+  ["Strike Dummy"] = {
+    goldCost = 9,
+  },
+  ["Pen Nib"] = {
+    goldCost = 9,
+  },
+  ["Mutagen"] = {
+    goldCost = 9,
+  },
+  ["Red Mask"] = {
+    goldCost = 8,
+  },
+  ["Anchor"] = {
+    goldCost = 6,
+  },
+  ["Bag of Preparation"] = {
+    goldCost = 7,
+  },
+  ["Lantern"] = {
+    goldCost = 6,
+  },
+  ["Blood Vial"] = {
+    goldCost = 7,
+  },
+  ["Happy Flower"] = {
+    goldCost = 6,
+  },
+  ["Runic Pyramid"] = {
+    goldCost = 7,
+  },
+  ["Dead Branch"] = {
+    goldCost = 11,
+  },
+  ["Calipers"] = {
+    goldCost = 7,
+  },
+  ["Ornamental Fan"] = {
+    goldCost = 8,
+  },
+  ["Letter Opener"] = {
+    goldCost = 7,
+  },
+  ["Blue Candle"] = {
+    goldCost = 7,
+  },
+  ["Ninja Scroll"] = {
+    goldCost = 7,
+  },
+  ["Ink Bottle"] = {
+    goldCost = 6,
+  },
+  ["Akabeko"] = {
+    goldCost = 6,
+  },
+  ["Centennial Puzzle"] = {
+    goldCost = 8,
+  },
+  ["Mummified Hand"] = {
+    goldCost = 9,
+  },
+  ["The Courier"] = {
+    goldCost = 6,
+  },
+  ["Mercury Hourglass"] = {
+    goldCost = 7,
+  },
+  ["Du-Vu Doll"] = {
+    goldCost = 7,
+  },
+  ["Omamori"] = {
+    goldCost = 6,
+  },
+  ["Whetstone"] = {
+    goldCost = 7,
+  },
+  ["War Paint"] = {
+    goldCost = 8,
+  },
+  ["The Boot"] = {
+    goldCost = 6,
+  },
+  ["Ssserpent Head"] = {
+    goldCost = 6,
+  },
+  ["Old Coin"] = {
+
+  },
+  ["Peace Pipe"] = {
+    goldCost = 8,
+  },
+  ["Toxic Egg"] = {
+    goldCost = 9,
+  },
+  ["Molten Egg"] = {
+    goldCost = 8,
+  },
+  ["Juzu Bracelet"] = {
+    goldCost = 6,
+  },
+  ["Wing Boots"] = {
+    goldCost = 9,
+  },
+  ["Horn Cleat"] = {
+    goldCost = 7,
+    values = {
+      ["1"] = {
+        handler = hornCleatHandler,
+      },
+      ["2"] = {
+        handler = hornCleatHandler,
+      }
+    },
+  },
+  ["Regal Pillow"] = {
+    goldCost = 6,
+  },
+  ["Dolly's Mirror"] = {
+    goldCost = 8,
+  },
+  ["Golden Idol"] = {
+    goldCost = 6,
+  },
+  ["Gambling Chip"] = {
+    goldCost = 6,
+  },
+  ["Toolbox"] = {
+    goldCost = 8,
+  },
+  ["Nilry's Codex"] = {
+    goldCost = 8,
+    handlers = {},
+  },
+  ["The Abacus"] = {
+    goldCost = 7,
+  },
+  ["Duality"] = {
+    goldCost = 7,
+    values = {
+      ["1"] = {
+        handler = function()
+
+        end
+      },
+      ["4"] = {
+        handler = function()
+
+        end,
+        needsTarget = true
+      }
+    }
+  },
+  ["Gremlin Horn"] = {
+    goldCost = 8,
+  },
 }
 
-ABILITY_TRIGGER_TO_RELIC = {
+ABILITY_TRIGGER_TO_RELICS = {
   [ABILITY_TRIGGER_TYPES.WHEN_DRAW_CURSE] = {
     "Du-Vu Doll",
   },
@@ -1969,12 +2197,6 @@ ABILITY_TRIGGER_TO_RELIC = {
   }
 }
 
-RELIC_HANDLERS = {
-  ["Incense Burner"] = function()
-    print("Hello")
-  end,
-}
-
 function waitFrames(frames) --This function can only be used inside a coroutine because it is using coroutine.yield()
    while frames > 0 do --loop until frames = 0
       coroutine.yield(0) --this will wait 1 frame, reguardless of the number put inside coroutine.yield(#)
@@ -2015,7 +2237,7 @@ function getRelicsGridPosition(arguments)
   return {
     x = decksPosition.x,
     y = decksPosition.y,
-    z = decksPosition.z + 20
+    z = decksPosition.z + 19.8
   }
 end
 
@@ -2340,7 +2562,7 @@ function killEnemy(arguments)
   card.flip()
 end
 
-function resolveCardActionDamage(arguments)
+function damageEnemy(arguments)
   local color = arguments.color
   local target = arguments.target
   local amount = arguments.amount
@@ -2367,6 +2589,10 @@ function resolveCardActionDamage(arguments)
       guid = enemyGuid
     })
   end
+end
+
+function resolveCardActionDamage(arguments)
+  damageEnemy(arguments)
 end
 
 function resolveCardActionWeak(arguments)
@@ -3718,16 +3944,14 @@ function handleGainRelicEffect(arguments)
   local amount = arguments.amount or 1
   local onDone = arguments.onDone
 
-  local chooseAmount = 1
-  if DEBUG_DIE_ABILITIES then
-    amount = 10
-    chooseAmount = 3
+  if DEBUG_GAIN_RELIC_AMOUNT ~= nil then
+    amount = DEBUG_GAIN_RELIC_AMOUNT
   end
 
   repeatPrepareAreaForOptionalGain(amount, {
     color = color,
     deck = OBJECTS.relicsDeck,
-    amount = chooseAmount,
+    amount = 1,
     tag = TAG_TYPES.RELIC,
     onDone = onDone
   })
@@ -4518,7 +4742,7 @@ function afterEnemySpawns(arguments)
   }
 end
 
-function handleSummon(arguments)
+function handleSummon(onDone)
   local act = GAME_DATA.act
   local summonQueue = GAME_DATA.combat.summonQueue
   local bagObject = getObjectFromGUID(OBJECTS.actDecksBag[act].base)
@@ -4588,6 +4812,7 @@ function handleSummon(arguments)
       end
 
       GAME_DATA.combat.summonQueue = {}
+      onDone()
     end
   })
 end
@@ -4702,6 +4927,36 @@ function onPlayingCardTargetChosen(arguments)
   resolvePlayingCardEffects()
 end
 
+function onPlayingRelicTargetChosen(arguments)
+  local targetType = arguments.type
+  local targetCardGuid = arguments.cardGuid
+
+  GAME_DATA.combat.playingTargetRelic.target = {
+    type = targetType,
+    guid = targetCardGuid,
+  }
+  local relicObject = getObjectFromGUID(GAME_DATA.combat.playingTargetRelic.guid)
+  local relicName = relicObject.getName()
+  local value = GAME_DATA.combat.dieResult
+  local color = GAME_DATA.combat.playingTargetRelic.color
+
+  RELICS_DATA[relicName].values[tostring(value)].handler({
+    color = color,
+    target = GAME_DATA.combat.playingTargetRelic.target,
+    onDone = function()
+      GAME_DATA.combat.playingTargetRelic = nil
+      GAME_DATA.combat.canTargetRelics[relicObject.guid] = nil
+      moveRelicBackIntoGrid({
+        color = color,
+        guid = relicObject.guid,
+        onDone = function()
+          relicObject.flip()
+        end
+      })
+    end
+  })
+end
+
 function startPlayCard(arguments)
   local color = arguments.color
   local card = arguments.card
@@ -4744,6 +4999,88 @@ function onPlayerDropsCard(arguments)
   startLuaCoroutine(self, "onPlayerDropsCardCoroutine")
 end
 
+function getRelicsGridPositionForExistingRelic(arguments)
+  local guid = arguments.guid
+  local color = arguments.color
+  local basePosition = getRelicsGridPosition({
+    color = color
+  })
+
+  local index = -1
+  for j, relic in ipairs(GAME_DATA.players[color].relics) do
+    if relic.guid == guid then
+      index = j
+      break
+    end
+  end
+  if index == -1 then
+    return basePosition
+  end
+
+  index = index - 1
+  local rowIndex = math.floor(index / 8)
+  local columnIndex = index % 8
+  return {
+    x = basePosition.x + columnIndex * 3,
+    y = basePosition.y,
+    z = basePosition.z - rowIndex * 3.3
+  }
+end
+
+function moveRelicBackIntoGrid(arguments)
+  function moveRelicBackIntoGridCoroutine()
+    local color = arguments.color
+    local guid = arguments.guid
+    local onDone = arguments.onDone
+    local preDelay = arguments.preDelay
+
+    if preDelay ~= nil then
+      waitFrames(preDelay)
+    end
+    local position = getRelicsGridPositionForExistingRelic({
+      color = color,
+      guid = guid
+    })
+    local object = getObjectFromGUID(guid)
+    object.setPositionSmooth(position)
+    if onDone == nil then
+      return 1
+    end
+
+    while object.isSmoothMoving() do
+      waitFrames(50)
+    end
+    onDone()
+    return 1
+  end
+  startLuaCoroutine(self, "moveRelicBackIntoGridCoroutine")
+end
+
+function onPlayerDropsTargetRelic(arguments)
+  function onPlayerDropsTargetRelicCoroutine()
+    local color = arguments.color
+    local relic = arguments.relic
+
+    GAME_DATA.combat.playingTargetRelic = {
+      color = color,
+      guid = relic.guid,
+    }
+
+    waitFrames(120)
+
+    if GAME_DATA.combat.playingTargetRelic ~= nil and GAME_DATA.combat.playingTargetRelic.target == nil then
+      moveRelicBackIntoGrid({
+        color = color,
+        guid = relic.guid
+      })
+    end
+
+    return 1
+  end
+
+  startLuaCoroutine(self, "onPlayerDropsTargetRelicCoroutine")
+end
+
 function setCombatPhase(arguments)
   local phase = arguments.phase
   GAME_DATA.combat.phase = phase
@@ -4770,7 +5107,11 @@ function rollDice(callback)
     while dice.isSmoothMoving() do
       waitFrames(50)
     end
-    dice.roll()
+    if DEBUG_DICE_VALUE ~= nil then
+      dice.setValue(DEBUG_DICE_VALUE)
+    else
+      dice.roll()
+    end
     while not dice.resting do
       waitFrames(50)
     end
@@ -4798,10 +5139,63 @@ function handleStartOfTurnAbilities(callback)
   callback()
 end
 
+function tryToPlayRelic(arguments)
+  local color = arguments.color
+  local guid = arguments.guid
+  local value = arguments.value
+  local onDone = arguments.onDone
+  local relicObject = getObjectFromGUID(guid)
+  local name = relicObject.getName()
+  relicObject.flip()
+  local needsTarget = RELICS_DATA[name].values[value].needsTarget
+  if not needsTarget then
+    RELICS_DATA[name].values[value].handler({
+      color = color,
+      onDone = onDone
+    })
+  else
+    GAME_DATA.combat.canTargetRelics[guid] = {
+      color = color,
+    }
+    onDone()
+  end
+end
+
 function handleDieResultAbilities(callback)
   local playingColors = getPlayingColors()
+  local dieValue = tostring(GAME_DATA.combat.dieResult)
+  local dieRelics = ABILITY_TRIGGER_TO_RELICS[ABILITY_TRIGGER_TYPES.DIE_RESULT]
 
-  callback()
+  local relicsToDone = 0
+  local done = 0
+  for _, relicName in ipairs(dieRelics) do
+    for _, color in ipairs(playingColors) do
+      if GAME_DATA.players[color].relicsMap[relicName] then
+        local guid = nil
+        for _, relicData in ipairs(GAME_DATA.players[color].relics) do
+          if relicData.name == relicName then
+            guid = relicData.guid
+            break
+          end
+        end
+        if guid == nil or RELICS_DATA[relicName].values[dieValue] == nil then
+          break
+        end
+        relicsToDone = relicsToDone + 1
+        tryToPlayRelic({
+          color = color,
+          guid = guid,
+          value = dieValue,
+          onDone = function()
+            done = done + 1
+            if relicsToDone == done then
+              callback()
+            end
+          end
+        })
+      end
+    end
+  end
 end
 
 function startCombatStartTurnPhase(onDone)
@@ -4916,6 +5310,27 @@ function startCombatLoop()
   startCombatPlayersTurn()
 end
 
+function startCombat()
+  setTurnCount({
+    turnCount = 1
+  })
+  moveDiceToInitialPosition()
+  local colors = getPlayingColors()
+  for _, color in ipairs(colors) do
+    local relics = GAME_DATA.players[color].relics
+    for _, relic in ipairs(relics) do
+      local guid = relic.guid
+      local relicObject = getObjectFromGUID(guid)
+      local rotation = relicObject.getRotation()
+      local isFaceUp = rotation.z ~= 180
+      if isFaceUp then
+        relicObject.flip()
+      end
+    end
+  end
+  startCombatLoop()
+end
+
 function getDeck(arguments)
   local color = arguments.color
   local deckZone = getObjectFromGUID(OBJECTS.playerDeckScriptingZones[color])
@@ -4923,8 +5338,8 @@ function getDeck(arguments)
   return getObjectFromGUID(deckGuid)
 end
 
-function setupEncounter(arguments)
-  function setupEncounterCoroutine()
+function startEncounter(arguments)
+  function startEncounterCoroutine()
     local bag = arguments.bag
     local map = arguments.map
     local act = arguments.act
@@ -4994,12 +5409,7 @@ function setupEncounter(arguments)
               })
 
               if GAME_DATA.combat.encountersSetup == #getPlayingColors() then
-                handleSummon()
-                setTurnCount({
-                  turnCount = 1
-                })
-                moveDiceToInitialPosition()
-                startCombatLoop()
+                handleSummon(startCombat)
               end
             end
           })
@@ -5018,30 +5428,22 @@ function setupEncounter(arguments)
 
     return 1
   end
-  startLuaCoroutine(self, "setupEncounterCoroutine")
+  startLuaCoroutine(self, "startEncounterCoroutine")
 end
 
-function setupFirstEncounter(arguments)
+function startFirstEncounter(arguments)
   local waitCount = arguments.waitCount or 100
-  function setupFirstEncounterCoroutine()
+  function startFirstEncounterCoroutine()
     waitFrames(waitCount)
     local map = getObjectFromGUID(OBJECTS.actMaps[1])
-    setupEncounter({
+    startEncounter({
       bag = getObjectFromGUID(OBJECTS.firstEncounterBag),
       map = map,
       act = "First Encounter"
     })
     return 1
   end
-  startLuaCoroutine(self, "setupFirstEncounterCoroutine")
-end
-
-function startFirstEncounter(arguments)
-  setupFirstEncounter(arguments)
-end
-
-function startEncounter()
-
+  startLuaCoroutine(self, "startFirstEncounterCoroutine")
 end
 
 function setupPlayerBoardZone(arguments)
@@ -5302,6 +5704,35 @@ function filterNeowDeck(arguments)
   end
 end
 
+function orderRelicDeckForDebug()
+  local order = DEBUG_RELIC_DRAW_ORDER
+  local deck = getObjectFromGUID(OBJECTS.relicsDeck)
+  local objects = deck.getObjects()
+  local guids = {}
+  for _, relicName in ipairs(order) do
+    for index, object in ipairs(objects) do
+      if object.name == relicName then
+        table.insert(guids, object.guid)
+      end
+    end
+  end
+
+  local deckPosition = deck.getPosition()
+  local index = 0
+  while index < #guids do
+    local backIndex = #guids - index
+    deck.takeObject({
+      guid = guids[backIndex],
+      position = {
+        x = deckPosition.x,
+        y = deckPosition.y + 2 + index,
+        z = deckPosition.z,
+      }
+    })
+    index = index + 1
+  end
+end
+
 function setupPlayers(arguments)
   local players = arguments.players
   local act = arguments.act
@@ -5348,7 +5779,7 @@ function setupPlayers(arguments)
       })
     end
 
-    if DEBUG_ONLY_GAIN_RELIC_NEOW or DEBUG_DIE_ABILITIES then
+    if DEBUG_ONLY_GAIN_RELIC_NEOW then
       filterNeowDeck({
         effectType = EFFECT_TYPES.GAIN_RELIC
       })
@@ -5412,6 +5843,10 @@ function setupPlayers(arguments)
       filterNeowDeck({
         effectType = EFFECT_TYPES.GAIN_RANDOM_POTION
       })
+    end
+
+    if DEBUG_USE_RELIC_DRAW_ORDER then
+      orderRelicDeckForDebug()
     end
 
     for index, color in ipairs(players) do
@@ -5656,8 +6091,10 @@ function gainRelic(arguments)
   })
   local relicName = relicObject.getName()
   table.insert(GAME_DATA.players[color].relics, {
+    guid = relicObject.guid,
     name = relicName
   })
+  GAME_DATA.players[color].relicsMap[relicName] = true
 end
 
 function gainCard(arguments)
@@ -5801,6 +6238,31 @@ function onObjectDrop(color, object)
       })
     end
   end
+
+  if isCombat and tag == TAG_TYPES.RELIC then
+    local guid = object.guid
+    if GAME_DATA.combat.canTargetRelics[guid] == nil or
+      GAME_DATA.combat.canTargetRelics[guid].color ~= color then
+        local ownerColor = nil
+        local name = object.getName()
+        local colors = getPlayingColors()
+        for _, color in ipairs(colors) do
+          if GAME_DATA.players[color].relicsMap[name] then
+            ownerColor = color
+            break
+          end
+        end
+        moveRelicBackIntoGrid({
+          color = ownerColor,
+          guid = guid,
+        })
+        return
+    end
+    onPlayerDropsTargetRelic({
+      color = color,
+      relic = object
+    })
+  end
 end
 
 function onObjectEnterZone(zone, object)
@@ -5809,11 +6271,23 @@ function onObjectEnterZone(zone, object)
     if zone.name == "ScriptingTrigger" then
       local enemyGuid = OBJECTS.combat.zoneToEnemy[zone.guid]
       local playingCard = GAME_DATA.combat.playingCard
-      if enemyGuid ~= nil and playingCard ~= nil and playingCard.cardGuid == object.guid then
-        onPlayingCardTargetChosen({
-          type = TARGET_TYPES.ENEMY,
-          cardGuid = enemyGuid
-        })
+      local playingTargetRelic = GAME_DATA.combat.playingTargetRelic
+      local isPlayingCard = playingCard ~= nil and playingCard.cardGuid == object.guid
+      local isPlayingRelic = playingTargetRelic ~= nil and playingTargetRelic.guid == object.guid
+      if enemyGuid ~= nil then
+        if isPlayingCard then
+          onPlayingCardTargetChosen({
+            type = TARGET_TYPES.ENEMY,
+            cardGuid = enemyGuid
+          })
+        end
+
+        if isPlayingRelic then
+          onPlayingRelicTargetChosen({
+            type = TARGET_TYPES.ENEMY,
+            cardGuid = enemyGuid
+          })
+        end
       end
     end
 
@@ -5844,7 +6318,6 @@ function startGame()
   colorlessDeck.shuffle()
   local potionDeck = getObjectFromGUID(OBJECTS.potionDeck)
   potionDeck.shuffle()
-
   setupAct({
     act = GAME_DATA.act
   })
