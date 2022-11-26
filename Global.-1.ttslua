@@ -1,5 +1,5 @@
 DEBUG_ONLY_LOSE_HP_NEOW = false
-DEBUG_ONLY_GAIN_RELIC_NEOW = true
+DEBUG_ONLY_GAIN_RELIC_NEOW = false
 DEBUG_ONLY_GAIN_COLORLESS_NEOW = false
 DEBUG_ONLY_UPGRADE_CARD_NEOW = false
 DEBUG_ONLY_REMOVE_CARD_NEOW = false
@@ -17,10 +17,10 @@ DEBUG_RELIC_DRAW_ORDER = {
   "Stone Calendar",
   "Captain's Wheel",
 }
-DEBUG_USE_RELIC_DRAW_ORDER = true
-DEBUG_GAIN_RELIC_AMOUNT = 3
+DEBUG_USE_RELIC_DRAW_ORDER = false
+DEBUG_GAIN_RELIC_AMOUNT = nil
 
-DEBUG_DICE_VALUE = 5
+DEBUG_DICE_VALUE = nil
 
 CHARACTERS = {"Ironclad", "Silent", "Defect", "Watcher"}
 
@@ -66,25 +66,29 @@ GAME_DATA = {
         energy = 3,
         block = 0,
         playedCardGuidsThisCombat = {},
-        playedCardGuidsThisTurn = {}
+        playedCardGuidsThisTurn = {},
+        endsTurn = false,
       },
       Green = {
         energy = 3,
         block = 0,
         playedCardGuidsThisCombat = {},
-        playedCardGuidsThisTurn = {}
+        playedCardGuidsThisTurn = {},
+        endsTurn = false,
       },
       Blue = {
         energy = 3,
         block = 0,
         playedCardGuidsThisCombat = {},
-        playedCardGuidsThisTurn = {}
+        playedCardGuidsThisTurn = {},
+        endsTurn = false,
       },
       Pink = {
         energy = 3,
         block = 0,
         playedCardGuidsThisCombat = {},
-        playedCardGuidsThisTurn = {}
+        playedCardGuidsThisTurn = {},
+        endsTurn = false,
       }
     },
     enemies = {},
@@ -4845,6 +4849,36 @@ function isCombatDone(arguments)
   local players = arguments.players
 end
 
+function discardHand(arguments)
+  function discardHandCoroutine()
+    local color = arguments.color
+
+    local playerDiscardZone = getObjectFromGUID(OBJECTS.playerDiscardScriptingZones[color])
+    local discardPosition = playerDiscardZone.getPosition()
+    local handObjects = getObjectFromGUID(OBJECTS.playerHands[color]).getObjects()
+    for index, object in ipairs(handObjects) do
+      object.use_hands = false
+    end
+    for index, object in ipairs(handObjects) do
+      object.setPositionSmooth({
+        x = discardPosition.x,
+        y = discardPosition.y + 5 + 0.3 * index,
+        z = discardPosition.z
+      })
+      local rotation = object.getRotation()
+      if rotation.z ~= 180 then
+        object.flip()
+      end
+    end
+    waitFrames(100)
+    for index, object in ipairs(handObjects) do
+      object.use_hands = true
+    end
+    return 1
+  end
+  startLuaCoroutine(self, "discardHandCoroutine")
+end
+
 function drawCards(arguments)
   local color = arguments.color
   local amount = arguments.amount
@@ -5090,6 +5124,33 @@ function startCombatPlayPhase()
   setCombatPhase({
     phase = TURN_PHASE_TYPES.PLAY
   })
+  local colors = getPlayingColors()
+  for _, color in ipairs(colors) do
+    local bowlPosition = getObjectFromGUID(OBJECTS.playerGoldBowls[color]).getPosition()
+    createPlayerEndOfTurnButton({
+      color = color,
+      position = {
+        x = bowlPosition.x,
+        y = bowlPosition.y,
+        z = bowlPosition.z + 7.8
+      }
+    })
+  end
+end
+
+function handleEndOfTurnAbilities(callback)
+  callback()
+end
+
+function startCombatEndOfTurnPhase()
+  handleEndOfTurnAbilities(function()
+    local colors = getPlayingColors()
+    for _, color in ipairs(colors) do
+      discardHand({
+        color = color
+      })
+    end
+  end)
 end
 
 function moveDiceToInitialPosition()
@@ -5195,6 +5256,10 @@ function handleDieResultAbilities(callback)
         })
       end
     end
+  end
+
+  if relicsToDone == 0 then
+    callback()
   end
 end
 
@@ -5519,6 +5584,98 @@ function setupPlayerPotionZone(arguments)
   })
 end
 
+function handleEndOfTurnClick(arguments)
+  local color = arguments.color
+  local colorClicks = arguments.colorClicks
+
+  if color ~= colorClicks then
+    return
+  end
+
+  GAME_DATA.combat.players[color].endsTurn = true
+  removePlayerEndOfTurnButton({
+    color = color
+  })
+
+  local colors = getPlayingColors()
+  local colorsCount = #colors
+  local colorsEndTheirTurn = 0
+  for _, playingColor in ipairs(colors) do
+    if GAME_DATA.combat.players[playingColor].endsTurn then
+      colorsEndTheirTurn = colorsEndTheirTurn + 1
+    end
+  end
+
+  if colorsEndTheirTurn == colorsCount then
+    startCombatEndOfTurnPhase()
+  end
+end
+
+function handleEndOfTurnClickRed(_, colorClicks)
+  handleEndOfTurnClick({
+    color = "Red",
+    colorClicks = colorClicks
+  })
+end
+
+function handleEndOfTurnClickGreen(_, colorClicks)
+  handleEndOfTurnClick({
+    color = "Green",
+    colorClicks = colorClicks
+  })
+end
+
+function handleEndOfTurnClickBlue(_, colorClicks)
+  handleEndOfTurnClick({
+    color = "Blue",
+    colorClicks = colorClicks
+  })
+end
+
+function handleEndOfTurnClickPink(_, colorClicks)
+  handleEndOfTurnClick({
+    color = "Pink",
+    colorClicks = colorClicks
+  })
+end
+
+function removePlayerEndOfTurnButton(arguments)
+  local color = arguments.color
+  local tableObject = Tables.getTableObject()
+  local buttons = tableObject.getButtons()
+  for _, button in ipairs(buttons) do
+    if button.click_function == "handleEndOfTurnClick"..color then
+      tableObject.removeButton(button.index)
+      break
+    end
+  end
+end
+
+function createPlayerEndOfTurnButton(arguments)
+  local color = arguments.color
+  local position = arguments.position
+  local tableObject = Tables.getTableObject()
+  tableObject.createButton({
+    click_function = "handleEndOfTurnClick"..color,
+    label = "End turn",
+    position = tableObject.positionToLocal({
+      x = -position.x,
+      y = position.y,
+      z = position.z
+    }),
+    height = 300,
+    width = 800,
+    font_color = {
+      r = 0,
+      g = 0,
+      b = 0,
+    },
+    font_size = 160,
+    rotation = { 0, 180, 0 },
+    scale = { 1, 1, 1 }
+  })
+end
+
 function handleNeowEffects(effects, color)
   function handleNeowEffectsCoroutine()
     if GAME_DATA.players[color].neowBonusStarted or GAME_DATA.players[color].neowBonusDone then
@@ -5745,6 +5902,7 @@ function setupPlayers(arguments)
         color = color
       })
       GAME_DATA.players[color].hp = CHARACTER_MAX_HP[character]
+
     end
 
     waitFrames(500)
@@ -6197,15 +6355,25 @@ function onObjectPickUp(color, object)
       broadcastToColor("You can play items only in play phase", color)
       object.drop()
     end
+
+    local playerEndsTurn = GAME_DATA.combat.players[color].endsTurn
+    if playerEndsTurn then
+      broadcastToColor("You end your turn, you can't play items anymore", color)
+      object.drop()
+    end
   end
 end
 
 function onObjectLeaveZone(zone, object)
   local isCombat = GAME_DATA.combat.inProgress
   if isCombat then
-    local playerHandGuid = OBJECTS.handToPlayer[zone.guid]
+    local color = OBJECTS.handToPlayer[zone.guid]
     local isReducedCard = GAME_DATA.combat.reducedCards[object.guid]
-    if playerHandGuid ~= nil and not isReducedCard then
+    if color ~= nil and GAME_DATA.combat.players[color].endsTurn then
+      return
+    end
+
+    if color ~= nil and not isReducedCard then
       local reducedCard = getObjectFromGUID(object.guid)
       if reducedCard == nil then
         return
