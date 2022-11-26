@@ -46,6 +46,7 @@ BOARD_BLOCK_OFFSET = 0.72
 BOARD_ENERGY_OFFSET = 0.72
 BOARD_HP_OFFSET = 0.927
 BOARD_LEFT_OFFSET = 0.92
+ENEMY_SIZE_Z = 4.937804
 
 GAME_DATA = {
   act = 1,
@@ -2289,7 +2290,7 @@ function addHpMeterForEnemy(arguments)
   local cardPosition = card.getPosition()
 
   self.addDecal({
-    name = guid,
+    name = guid.."hp",
     url = "http://cloud-3.steamusercontent.com/ugc/1945020522805785288/5D2DA9E8F63D1CF832B16B6E203DB06269625DDB/",
     position = {
       x = cardPosition.x - 0.4,
@@ -2329,11 +2330,54 @@ function addHpMeterForEnemy(arguments)
   })
 end
 
+function addBlockMeterForEnemy(arguments)
+  local guid = arguments.guid
+  local card = getObjectFromGUID(guid)
+  local name = card.getName()
+  local cardPosition = card.getPosition()
+
+  self.addDecal({
+    name = guid.."block",
+    url = "http://cloud-3.steamusercontent.com/ugc/1941643418384067312/7EE0530510F8E37DA8FAF23EFEA848F23B31F4CC/",
+    position = {
+      x = cardPosition.x - 0.4,
+      y = cardPosition.y,
+      z = cardPosition.z - 3.55
+    },
+    rotation = {
+      x = 90,
+      y = 0,
+      z = 0
+    },
+    scale = {0.65, 0.65, 0.65}
+  })
+
+  local act = GAME_DATA.act
+  local enemyCombatData = getEnemyCombatData(guid)
+  card.createButton({
+    click_function = "block",
+    label = tostring(enemyCombatData.block),
+    position = card.positionToLocal({
+      x = cardPosition.x - 0.3,
+      y = cardPosition.y,
+      z = cardPosition.z - 3.55
+    }),
+    height = 0,
+    width = 0,
+    font_color = {
+      r = 80/255,
+      g = 180/255,
+      b = 235/255
+    },
+    font_size = 130
+  })
+end
+
 function removeHpMeterForEnemy(arguments)
   local guid = arguments.guid
   local decals = self.getDecals()
   for index, decal in ipairs(decals) do
-    if decal.name == guid then
+    if decal.name == guid.."hp" then
       table.remove(decals, index)
       break
     end
@@ -2342,8 +2386,89 @@ function removeHpMeterForEnemy(arguments)
   self.setDecals(decals)
 end
 
+function removeBlockMeterForEnemy(arguments)
+  local guid = arguments.guid
+  local decals = self.getDecals()
+  for index, decal in ipairs(decals) do
+    if decal.name == guid.."block" then
+      table.remove(decals, index)
+      break
+    end
+  end
+
+  local card = getObjectFromGUID(guid)
+  local buttons = card.getButtons()
+  for _, button in ipairs(buttons) do
+    if button.click_function == "block" then
+      card.removeButton(button.index)
+      break
+    end
+  end
+
+  self.setDecals(decals)
+end
+
+function updateBlockMeterForEnemy(arguments)
+  local guid = arguments.guid
+  local card = getObjectFromGUID(guid)
+  local buttons = card.getButtons()
+
+  for _, button in ipairs(buttons) do
+    if button.click_function == "block" then
+      card.editButton({
+        index = button.index,
+        label = tostring(GAME_DATA.combat.enemies[guid].block)
+      })
+      break
+    end
+  end
+end
+
 function removeEffectsForEnemy(arguments)
 
+end
+
+function enemyHasEffectMeter(arguments)
+  local guid = arguments.guid
+  local effectType = arguments.effectType
+
+  local card = getObjectFromGUID(guid)
+  local cardDecals = card.getDecals()
+  if cardDecals == nil then
+    return false
+  end
+  local hasEffectMeter = false
+  for _, decal in ipairs(cardDecals) do
+    if decal.name == effectType then
+      hasEffectMeter = true
+      break
+    end
+  end
+  return hasEffectMeter
+end
+
+function addEffectMeterForEnemy(arguments)
+  local guid = arguments.guid
+  local effect = arguments.effect
+  local index = arguments.index
+
+  local card = getObjectFromGUID(guid)
+  local cardPosition = card.getPosition()
+  card.addDecal({
+    name = effect.type,
+    url = COMBAT_EFFECT_TO_DECAL_URL[effect.type],
+    position = card.positionToLocal({
+      x = cardPosition.x + 2.3,
+      y = cardPosition.y,
+      z = cardPosition.z + ENEMY_SIZE_Z / 2 - 0.5 - 1 * (index - 1)
+    }),
+    rotation = {
+      x = 90,
+      y = 0,
+      z = 180
+    },
+    scale = {0.7, 0.7, 0.7}
+  })
 end
 
 function setEffectMetersForEnemy(arguments)
@@ -2351,31 +2476,25 @@ function setEffectMetersForEnemy(arguments)
   local effects = arguments.effects
   local card = getObjectFromGUID(guid)
   local cardPosition = card.getPosition()
-  local cardBounds = card.getBounds()
 
-  local decals = {}
+  local decals = card.getDecals()
   local buttons = card.getButtons()
   for index, effect in ipairs(effects) do
-    decals[index] = {
-      name = effect.type,
-      url = COMBAT_EFFECT_TO_DECAL_URL[effect.type],
-      position = card.positionToLocal({
-        x = cardPosition.x + 2.3,
-        y = cardPosition.y,
-        z = cardPosition.z + cardBounds.size.z / 2 - 0.5 - 1 * (index - 1)
-      }),
-      rotation = {
-        x = 90,
-        y = 0,
-        z = 180
-      },
-      scale = {0.7, 0.7, 1}
-    }
     for _, button in ipairs(buttons) do
       if button.click_function == effect.type then
         card.removeButton(button.index)
         break
       end
+    end
+    if not enemyHasEffectMeter({
+      guid = guid,
+      effectType = effect.type
+    }) then
+      addEffectMeterForEnemy({
+        guid = guid,
+        effect = effect,
+        index = index
+      })
     end
     card.createButton({
       click_function = effect.type,
@@ -2383,7 +2502,7 @@ function setEffectMetersForEnemy(arguments)
       position = {
         x = 1.8,
         y = 1,
-        z = -cardBounds.size.z / 2 + 1.34 + 0.624 * (index - 1)
+        z = -ENEMY_SIZE_Z / 2 + 1.27 + 0.624 * (index - 1)
       },
       height = 0,
       width = 0,
@@ -2395,7 +2514,6 @@ function setEffectMetersForEnemy(arguments)
       font_size = 130
     })
   end
-  card.setDecals(decals)
 end
 
 function finishResolvingCard(arguments)
@@ -2486,22 +2604,39 @@ function setBlockForPlayer(color, block)
   GAME_DATA.combat.players[color].block = block
 end
 
-function addBlockForEnemy(guid, block)
+function getBlockForEnemy(guid)
+  local enemyData = GAME_DATA.combat.enemies[guid]
+  return enemyData.block
+end
+
+function setBlockForEnemy(guid, block)
   local enemyData = GAME_DATA.combat.enemies[guid]
   local enemyName = enemyData.name
-  local newBlock = enemyData.block + block
   local logString = enemyName.." current block: "..enemyData.block
-  logString = logString..".\nAdd "..block.." block.\n"
-  logString = logString.."New block: "..newBlock.."."
+  logString = logString.."\nNew block: "..block.."."
   myLog(logString)
+  local previousBlock = enemyData.block
+  enemyData.block = block
+  if previousBlock <= 0 and block > 0 then
+    addBlockMeterForEnemy({
+      guid = guid
+    })
+  end
+  if previousBlock > 0 and block <= 0 then
+    removeBlockMeterForEnemy({
+      guid = guid
+    })
+  end
+  if previousBlock > 0 and block > 0 then
+    updateBlockMeterForEnemy({
+      guid = guid
+    })
+  end
+end
 
-  local card = getObjectFromGUID(guid)
-  card.UI.setAttribute("Block image", "active", "true")
-  card.UI.setAttributes("Block text", {
-    active = "true",
-    text = tostring(newBlock)
-  })
-  enemyData.block = newBlock
+function addBlockForEnemy(guid, block)
+  local currentBlock = getBlockForEnemy(guid)
+  setBlockForEnemy(guid, currentBlock + block)
 end
 
 function setCharacterBoardHp(arguments)
@@ -2566,32 +2701,44 @@ function killEnemy(arguments)
   card.flip()
 end
 
+function getEnemyCombatData(guid)
+  return GAME_DATA.combat.enemies[guid]
+end
+
 function damageEnemy(arguments)
   local color = arguments.color
   local target = arguments.target
   local amount = arguments.amount
   local enemyGuid = target.guid
 
-  local newHp = GAME_DATA.combat.enemies[enemyGuid].hp - amount
-  local logString = "Damage enemy \""..GAME_DATA.combat.enemies[enemyGuid].name.."\".\n"
-  logString = logString.."Current hp: "..GAME_DATA.combat.enemies[enemyGuid].hp..".\n"
-  logString = logString.."New hp: "..newHp.."."
-  myLog(logString)
-  GAME_DATA.combat.enemies[enemyGuid].hp = newHp
-  local card = getObjectFromGUID(enemyGuid)
-  local buttons = card.getButtons()
-  for _, button in ipairs(buttons) do
-    if button.click_function == "hp" then
-      card.editButton({
-        index = button.index,
-        label = tostring(newHp)
+  local block = getBlockForEnemy(enemyGuid)
+  if block > 0 then
+    local newBlock = math.max(0, block - amount)
+    setBlockForEnemy(enemyGuid, newBlock)
+  end
+  if block < amount then
+    local amountThroughBlock = math.abs(block - amount)
+    local newHp = math.max(GAME_DATA.combat.enemies[enemyGuid].hp - amountThroughBlock, 0)
+    local logString = "Damage enemy \""..GAME_DATA.combat.enemies[enemyGuid].name.."\".\n"
+    logString = logString.."Current hp: "..GAME_DATA.combat.enemies[enemyGuid].hp..".\n"
+    logString = logString.."New hp: "..newHp.."."
+    myLog(logString)
+    GAME_DATA.combat.enemies[enemyGuid].hp = newHp
+    local card = getObjectFromGUID(enemyGuid)
+    local buttons = card.getButtons()
+    for _, button in ipairs(buttons) do
+      if button.click_function == "hp" then
+        card.editButton({
+          index = button.index,
+          label = tostring(newHp)
+        })
+      end
+    end
+    if newHp <= 0 then
+      killEnemy({
+        guid = enemyGuid
       })
     end
-  end
-  if newHp <= 0 then
-    killEnemy({
-      guid = enemyGuid
-    })
   end
 end
 
@@ -2621,22 +2768,58 @@ function resolveCardActionWeak(arguments)
     })
   end
 
+  myLog(enemyData.effects)
   setEffectMetersForEnemy({
     guid = enemyGuid,
     effects = enemyData.effects
   })
 end
 
-function resolveCardActionHit(arguments)
+function handleCurlUpAbility(arguments)
+  local guid = arguments.guid
+
+  setBlockForEnemy(guid, 2)
+end
+
+function hitEnemy(arguments)
   local color = arguments.color
   local target = arguments.target
   local power = arguments.power
 
-  resolveCardActionDamage({
+  damageEnemy({
     color = color,
     target = target,
     amount = power,
   })
+  local enemyCombatData = getEnemyCombatData(target.guid)
+  enemyCombatData.hitCount = enemyCombatData.hitCount + 1
+  if enemyCombatData.hp > 0 then
+    local enemy = getObjectFromGUID(target.guid)
+    local enemyStats = getEnemyStats({
+      act = GAME_DATA.act,
+      name = enemy.getName(),
+      tag = enemy.getTags()[1]
+    })
+    if enemyStats.abilities == nil then
+      return
+    end
+    local hasCurlUp = false
+    for _, ability in ipairs(enemyStats.abilities) do
+      if ability == "Curl Up" then
+        hasCurlUp = true
+        break
+      end
+    end
+    if hasCurlUp and enemyCombatData.hitCount == 1 then
+      handleCurlUpAbility({
+        guid = enemy.guid
+      })
+    end
+  end
+end
+
+function resolveCardActionHit(arguments)
+  hitEnemy(arguments)
 end
 
 function resolveCardStrike(arguments)
@@ -4742,7 +4925,8 @@ function afterEnemySpawns(arguments)
     index = index,
     hp = stats.hp,
     block = 0,
-    effects = {}
+    effects = {},
+    hitCount = 0,
   }
 end
 
@@ -4852,6 +5036,7 @@ end
 function discardHand(arguments)
   function discardHandCoroutine()
     local color = arguments.color
+    local onDone = arguments.onDone
 
     local playerDiscardZone = getObjectFromGUID(OBJECTS.playerDiscardScriptingZones[color])
     local discardPosition = playerDiscardZone.getPosition()
@@ -4874,6 +5059,7 @@ function discardHand(arguments)
     for index, object in ipairs(handObjects) do
       object.use_hands = true
     end
+    onDone()
     return 1
   end
   startLuaCoroutine(self, "discardHandCoroutine")
@@ -5142,12 +5328,40 @@ function handleEndOfTurnAbilities(callback)
   callback()
 end
 
+function getAliveEnemies()
+  local enemies = {}
+  for guid, enemy in pairs(GAME_DATA.combat.enemies) do
+    if enemy.hp > 0 then
+      table.insert(enemies, enemy)
+    end
+  end
+  return enemies
+end
+
+function startEnemyTurn()
+  myLog("Start enemy turn")
+  setTurn({
+    turn = TURN_TYPES.ENEMIES
+  })
+  local enemies = getAliveEnemies()
+  for _, enemy in ipairs(enemies) do
+    setBlockForEnemy(enemy.guid, 0)
+  end
+end
+
 function startCombatEndOfTurnPhase()
   handleEndOfTurnAbilities(function()
     local colors = getPlayingColors()
+    local doneCount = 0
     for _, color in ipairs(colors) do
       discardHand({
-        color = color
+        color = color,
+        onDone = function()
+          doneCount = doneCount + 1
+          if doneCount == #colors then
+            startEnemyTurn()
+          end
+        end
       })
     end
   end)
