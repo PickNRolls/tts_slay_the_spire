@@ -93,6 +93,7 @@ GAME_DATA = {
       }
     },
     enemies = {},
+    enemiesOrder = {},
     reducedCards = {}
   },
   players = {
@@ -286,6 +287,7 @@ OBJECTS = {
   colorlessDeck = "8049ab",
   potionDeck = "860f93",
   dice = "4d8f9b",
+  dazedDeck = "3ef7f3",
 
   actMaps = {
     "0b5712",
@@ -361,16 +363,83 @@ ACTION_TYPES = {
   WEAK = "Weak",
   DAZED = "Dazed",
   BUFF = "Buff",
+  BLOCK = "Block",
   VULNERABLE = "Vulnerable",
   AREA_OF_EFFECT = "Area of effect"
 }
 
+ENEMY_ACTION_HANDLERS = {
+  [ACTION_TYPES.HIT] = function(arguments)
+    myLog(arguments.guid.." "..arguments.action.type)
+    local color = arguments.color
+    local guid = arguments.guid
+    local action = arguments.action
+    local power = action.power or 1
+    local onDone = arguments.onDone
+
+    hitPlayer({
+      color = color,
+      power = power
+    })
+    onDone()
+  end,
+  [ACTION_TYPES.WEAK] = function(arguments)
+    myLog(arguments.guid.." "..arguments.action.type)
+    local color = arguments.color
+    local guid = arguments.guid
+    local action = arguments.action
+    local onDone = arguments.onDone
+
+    weakPlayer({
+      color = color
+    })
+    onDone()
+  end,
+  [ACTION_TYPES.BUFF] = function(arguments)
+    myLog(arguments.guid.." "..arguments.action.type)
+    local guid = arguments.guid
+    local action = arguments.action
+    local amount = action.amount or 1
+    local onDone = arguments.onDone
+
+    buffEnemy({
+      guid = guid,
+      amount = amount
+    })
+    onDone()
+  end,
+  [ACTION_TYPES.BLOCK] = function(arguments)
+    myLog(arguments.guid.." "..arguments.action.type)
+    local guid = arguments.guid
+    local action = arguments.action
+    local amount = action.power or 1
+    local onDone = arguments.onDone
+
+    addBlockForEnemy(guid, amount)
+    onDone()
+  end,
+  [ACTION_TYPES.DAZED] = function(arguments)
+    myLog(arguments.guid.." "..arguments.action.type)
+    local color = arguments.color
+    local guid = arguments.guid
+    local action = arguments.action
+    local onDone = arguments.onDone
+
+    dazedPlayer({
+      color = color,
+      onDone = onDone
+    })
+  end
+}
+
 COMBAT_EFFECT_TYPES = {
-  WEAK = "Weak"
+  WEAK = "Weak",
+  BUFF = "Buff"
 }
 
 COMBAT_EFFECT_TO_DECAL_URL = {
-  [COMBAT_EFFECT_TYPES.WEAK] = "http://cloud-3.steamusercontent.com/ugc/1857175596587634426/109E0B1D8C193B75B18113CF0387D3E44D1FEF2B/"
+  [COMBAT_EFFECT_TYPES.WEAK] = "http://cloud-3.steamusercontent.com/ugc/1857175596587634426/109E0B1D8C193B75B18113CF0387D3E44D1FEF2B/",
+  [COMBAT_EFFECT_TYPES.BUFF] = "http://cloud-3.steamusercontent.com/ugc/1857175596587634239/BA94794B672CEE70F9E5AD8F7D7F3DF3FC641B1C/"
 }
 
 REWARD_TYPES = {
@@ -455,7 +524,7 @@ ENEMIES_DATA = {
           everyTurnActions = {
             {
               type = ACTION_TYPES.HIT,
-              power = 2,
+              power = 1,
             }
           },
           summons = {
@@ -2656,17 +2725,21 @@ function setCharacterBoardHp(arguments)
   })
 end
 
-function losePlayerHp(color, amount)
+function getPlayerHp(color)
+  return GAME_DATA.players[color].hp
+end
+
+function setPlayerHp(color, value)
   local playerData = GAME_DATA.players[color]
   local character = playerData.character
-  local newHp = playerData.hp - amount
-  local logString = color.." current hp: "..playerData.hp
-  logString = logString..".\nLose "..amount.." hp.\n"
-  logString = logString.."New hp: "..newHp.."."
-  myLog(logString)
   local characterBoard = getObjectFromGUID(OBJECTS.characterBoards[character])
-  characterBoard.call("setHp", { value = newHp })
-  playerData.hp = newHp
+  characterBoard.call("setHp", { value = value })
+  playerData.hp = value
+end
+
+function losePlayerHp(color, amount)
+  local hp = getPlayerHp(color)
+  setPlayerHp(color, math.max(0, hp - amount))
 end
 
 function resolveCardActionBlock(arguments)
@@ -2705,73 +2778,125 @@ function getEnemyCombatData(guid)
   return GAME_DATA.combat.enemies[guid]
 end
 
+function damageUnit(arguments)
+  local hp = arguments.hp
+  local setHp = arguments.setHp
+  local killUnit = arguments.killUnit
+  local block = arguments.block
+  local setBlock = arguments.setBlock
+  local amount = arguments.amount
+
+  if block > 0 then
+    local newBlock = math.max(0, block - amount)
+    setBlock(newBlock)
+  end
+  if block < amount then
+    local amountThroughBlock = math.abs(block - amount)
+    local newHp = math.max(hp - amountThroughBlock, 0)
+    setHp(newHp)
+    if newHp <= 0 then
+      killUnit()
+    end
+  end
+end
+
 function damageEnemy(arguments)
   local color = arguments.color
   local target = arguments.target
   local amount = arguments.amount
   local enemyGuid = target.guid
+  local data = getEnemyCombatData(enemyGuid)
 
-  local block = getBlockForEnemy(enemyGuid)
-  if block > 0 then
-    local newBlock = math.max(0, block - amount)
-    setBlockForEnemy(enemyGuid, newBlock)
-  end
-  if block < amount then
-    local amountThroughBlock = math.abs(block - amount)
-    local newHp = math.max(GAME_DATA.combat.enemies[enemyGuid].hp - amountThroughBlock, 0)
-    local logString = "Damage enemy \""..GAME_DATA.combat.enemies[enemyGuid].name.."\".\n"
-    logString = logString.."Current hp: "..GAME_DATA.combat.enemies[enemyGuid].hp..".\n"
-    logString = logString.."New hp: "..newHp.."."
-    myLog(logString)
-    GAME_DATA.combat.enemies[enemyGuid].hp = newHp
-    local card = getObjectFromGUID(enemyGuid)
-    local buttons = card.getButtons()
-    for _, button in ipairs(buttons) do
-      if button.click_function == "hp" then
-        card.editButton({
-          index = button.index,
-          label = tostring(newHp)
-        })
+  damageUnit({
+    hp = data.hp,
+    setHp = function(newHp)
+      GAME_DATA.combat.enemies[enemyGuid].hp = newHp
+      local card = getObjectFromGUID(enemyGuid)
+      local buttons = card.getButtons()
+      for _, button in ipairs(buttons) do
+        if button.click_function == "hp" then
+          card.editButton({
+            index = button.index,
+            label = tostring(newHp)
+          })
+        end
       end
-    end
-    if newHp <= 0 then
+    end,
+    killUnit = function()
       killEnemy({
         guid = enemyGuid
       })
-    end
-  end
+    end,
+    block = data.block,
+    setBlock = function(newBlock)
+      setBlockForEnemy(enemyGuid, newBlock)
+    end,
+    amount = amount
+  })
+end
+
+function damagePlayer(arguments)
+  local color = arguments.color
+  local amount = arguments.amount
+  local hp = GAME_DATA.players[color].hp
+  local block = GAME_DATA.combat.players[color].block
+
+  damageUnit({
+    hp = hp,
+    setHp = function(newHp)
+      setPlayerHp(color, newHp)
+    end,
+    killUnit = function()
+      myLog("Player "..color.." is killed")
+    end,
+    block = block,
+    setBlock = function(newBlock)
+      setBlockForPlayer(color, newBlock)
+    end,
+    amount = amount
+  })
 end
 
 function resolveCardActionDamage(arguments)
   damageEnemy(arguments)
 end
 
-function resolveCardActionWeak(arguments)
-  local color = arguments.color
-  local target = arguments.target
-  local enemyGuid = target.guid
-  local enemyData = GAME_DATA.combat.enemies[enemyGuid]
+function applyEffectToEnemy(arguments)
+  local guid = arguments.guid
+  local effectToApply = arguments.effect
+  local enemyData = getEnemyCombatData(guid)
+  local amount = effectToApply.amount or 1
 
-  myLog("Weak enemy \""..enemyData.name.."\".")
-  local hasWeakIndex = -1
+  local hasEffectIndex = -1
   for index, effect in ipairs(enemyData.effects) do
-    if effect.type == COMBAT_EFFECT_TYPES.WEAK then
-      hasWeakIndex = index
+    if effect.type == effectToApply.type then
+      hasEffectIndex = index
     end
   end
-  if hasWeakIndex ~= -1 then
-    enemyData.effects[hasWeakIndex].amount = enemyData.effects[hasWeakIndex].amount + 1
+  if hasEffectIndex ~= -1 then
+    enemyData.effects[hasEffectIndex].amount = enemyData.effects[hasEffectIndex].amount + amount
   else
     table.insert(enemyData.effects, {
-      type = COMBAT_EFFECT_TYPES.WEAK,
-      amount = 1
+      type = effectToApply.type,
+      amount = effectToApply.amount
     })
   end
 
-  myLog(enemyData.effects)
   setEffectMetersForEnemy({
-    guid = enemyGuid,
+    guid = guid,
     effects = enemyData.effects
+  })
+end
+
+function resolveCardActionWeak(arguments)
+  local target = arguments.target
+
+  applyEffectToEnemy({
+    guid = target.guid,
+    effect = {
+      type = COMBAT_EFFECT_TYPES.WEAK,
+      amount = 1
+    }
   })
 end
 
@@ -2779,6 +2904,38 @@ function handleCurlUpAbility(arguments)
   local guid = arguments.guid
 
   setBlockForEnemy(guid, 2)
+end
+
+function dazedPlayer(arguments)
+  function dazedPlayerCoroutine()
+    local color = arguments.color
+    local dazedDeck = getObjectFromGUID(OBJECTS.dazedDeck)
+    local drawPosition = getDrawDeckPosition({
+      color = color
+    })
+    dazedDeck.takeObject({
+      position = drawPosition
+    })
+    waitFrames(550)
+    arguments.onDone()
+    return 1
+  end
+  startLuaCoroutine(self, "dazedPlayerCoroutine")
+end
+
+function weakPlayer(arguments)
+  local color = arguments.color
+  myLog("Player "..color.." weaked")
+end
+
+function hitPlayer(arguments)
+  local color = arguments.color
+  local power = arguments.power
+
+  damagePlayer({
+    color = color,
+    amount = power
+  })
 end
 
 function hitEnemy(arguments)
@@ -2816,6 +2973,19 @@ function hitEnemy(arguments)
       })
     end
   end
+end
+
+function buffEnemy(arguments)
+  local guid = arguments.guid
+  local amount = arguments.amount or 1
+
+  applyEffectToEnemy({
+    guid = guid,
+    effect = {
+      type = COMBAT_EFFECT_TYPES.BUFF,
+      amount = amount
+    }
+  })
 end
 
 function resolveCardActionHit(arguments)
@@ -2942,8 +3112,8 @@ end
 
 function getPlayingColors()
   local colors = {}
-  for color, data in pairs(GAME_DATA.players) do
-    if data.character ~= nil then
+  for _, color in ipairs({"Red", "Green", "Blue", "Pink"}) do
+    if GAME_DATA.players[color].character ~= nil then
       table.insert(colors, color)
     end
   end
@@ -4887,20 +5057,6 @@ function prepareEnemyAfterSpawn(arguments)
   addHpMeterForEnemy({
     guid = card.guid
   })
-  -- spawnObject({
-  --   type = "3DText",
-  --   position = {
-  --     x = cardPosition.x + 0.2,
-  --     y = cardPosition.y,
-  --     z = cardPosition.z - 4
-  --   },
-  --   scale = {0.2, 0.2, 0.2},
-  --   callback_function = function(textObject)
-  --     textObject.setValue(2)
-  --     textObject.setFontSize(15)
-  --     textObject.setFontColor("#ff4949")
-  --   end
-  -- })
 end
 
 function afterEnemySpawns(arguments)
@@ -4952,6 +5108,12 @@ function handleSummon(onDone)
         table.insert(nameGuidMap[card.name], card.guid)
       end
 
+      local allSummonOwnersCount = #summonQueue
+      if allSummonOwnersCount == 0 then
+        onDone()
+      end
+
+      local allSummonsForOwnerDone = 0
       for index, data in ipairs(summonQueue) do
         local guid = data.cardGuid
         local ownerIndex = data.index
@@ -4967,6 +5129,7 @@ function handleSummon(onDone)
         local summons = cardStats.summons
         for index, summon in ipairs(summons) do
           local summoned = 0
+          local summonsDone = 0
           local variants = ishallowCopy(summon.variants)
           while summoned ~= summon.amount do
             local randomVariant = variants[math.random(#variants)]
@@ -4987,11 +5150,18 @@ function handleSummon(onDone)
                 z = 180
               },
               callback_function = function(card)
+                summonsDone = summonsDone + 1
                 afterEnemySpawns({
                   cardGuid = card.guid,
                   row = ownerRow,
                   index = ownerIndex + index - 1 + summoned
                 })
+                if summonsDone == summon.amount then
+                  allSummonsForOwnerDone = allSummonsForOwnerDone + 1
+                end
+                if allSummonsForOwnerDone == allSummonOwnersCount then
+                  onDone()
+                end
               end
             })
             summoned = summoned + 1
@@ -5000,7 +5170,6 @@ function handleSummon(onDone)
       end
 
       GAME_DATA.combat.summonQueue = {}
-      onDone()
     end
   })
 end
@@ -5047,7 +5216,7 @@ function discardHand(arguments)
     for index, object in ipairs(handObjects) do
       object.setPositionSmooth({
         x = discardPosition.x,
-        y = discardPosition.y + 5 + 0.3 * index,
+        y = discardPosition.y + 2 + 0.3 * index,
         z = discardPosition.z
       })
       local rotation = object.getRotation()
@@ -5059,26 +5228,71 @@ function discardHand(arguments)
     for index, object in ipairs(handObjects) do
       object.use_hands = true
     end
+    waitFrames(400)
     onDone()
     return 1
   end
   startLuaCoroutine(self, "discardHandCoroutine")
 end
 
-function drawCards(arguments)
+function shuffleDiscardIntoDraw(arguments)
   local color = arguments.color
-  local amount = arguments.amount
+  local discardZone = getObjectFromGUID(OBJECTS.playerDiscardScriptingZones[color])
+  local object = discardZone.getObjects()[1]
+  local drawPosition = getDrawDeckPosition({
+    color = color
+  })
+  object.setPositionSmooth(drawPosition)
+  object.shuffle()
+end
 
-  local playerDrawZone = getObjectFromGUID(OBJECTS.playerDrawScriptingZones[color])
-  local objectsInDraw = playerDrawZone.getObjects()
-  for _, object in ipairs(objectsInDraw) do
+function drawCards(arguments)
+  function drawCardsCoroutine()
+    local color = arguments.color
+    local amount = arguments.amount
+
+    local playerDrawZone = getObjectFromGUID(OBJECTS.playerDrawScriptingZones[color])
+    local object = playerDrawZone.getObjects()[1]
+    if object == nil then
+      shuffleDiscardIntoDraw({
+        color = color
+      })
+      waitFrames(400)
+      object = playerDrawZone.getObjects()[1]
+    end
     if object.name == "Deck" then
-      object.deal(5, color)
+      local cardObjects = object.getObjects()
+      local cardCount = #cardObjects
+
+      if cardCount < amount then
+        local secondDrawAmount = amount - cardCount
+        object.deal(cardCount, color)
+        shuffleDiscardIntoDraw({
+          color = color
+        })
+        waitFrames(400)
+        object = playerDrawZone.getObjects()[1]
+        object.deal(secondDrawAmount, color)
+        return 1
+      end
+      object.deal(amount, color)
     end
-    if object.name == "Card" then
+    if object.name == "Card" or object.name == "CardCustom" then
       object.deal(1, color)
+      local secondDrawAmount = amount - 1
+      if secondDrawAmount > 0 then
+        shuffleDiscardIntoDraw({
+          color = color
+        })
+        waitFrames(400)
+        object = playerDrawZone.getObjects()[1]
+        object.deal(secondDrawAmount, color)
+      end
     end
+
+    return 1
   end
+  startLuaCoroutine(self, "drawCardsCoroutine")
 end
 
 function canPlayerPlayCard(arguments)
@@ -5330,23 +5544,153 @@ end
 
 function getAliveEnemies()
   local enemies = {}
-  for guid, enemy in pairs(GAME_DATA.combat.enemies) do
+  local index = 1
+  while index <= #GAME_DATA.combat.enemiesOrder do
+    local guid = GAME_DATA.combat.enemiesOrder[index]
+    local enemy = GAME_DATA.combat.enemies[guid]
     if enemy.hp > 0 then
       table.insert(enemies, enemy)
     end
+    index = index + 1
   end
   return enemies
 end
 
-function startEnemyTurn()
-  myLog("Start enemy turn")
-  setTurn({
-    turn = TURN_TYPES.ENEMIES
+function doEnemyOneAction(arguments)
+  local guid = arguments.guid
+  local action = arguments.action
+  local colors = getPlayingColors()
+  local combatData = getEnemyCombatData(guid)
+  local targetColor = colors[combatData.row]
+  local onDone = arguments.onDone
+
+  ENEMY_ACTION_HANDLERS[action.type]({
+    color = targetColor,
+    action = action,
+    guid = guid,
+    onDone = onDone
   })
-  local enemies = getAliveEnemies()
-  for _, enemy in ipairs(enemies) do
-    setBlockForEnemy(enemy.guid, 0)
+end
+
+function doEnemyDieActions(arguments)
+  local guid = arguments.guid
+  local stats = arguments.stats
+  local value = GAME_DATA.combat.dieResult
+  local actions = stats.dieActions[tostring(value)]
+  local onDone = arguments.onDone
+
+  local done = 0
+  local actionsCount = #actions
+  for _, action in ipairs(actions) do
+    doEnemyOneAction({
+      guid = guid,
+      action = action,
+      onDone = function()
+        done = done + 1
+        if done == actionsCount then
+          myLog("callback")
+          onDone()
+        end
+      end
+    })
   end
+end
+
+function doEnemyEveryTurnActions(arguments)
+  local guid = arguments.guid
+  local stats = arguments.stats
+  local actions = stats.everyTurnActions
+  local onDone = arguments.onDone
+
+  local done = 0
+  local actionsCount = #actions
+
+  function callback()
+    done = done + 1
+    if done == actionsCount then
+      onDone()
+    end
+  end
+
+  for _, action in ipairs(actions) do
+    doEnemyOneAction({
+      guid = guid,
+      action = action,
+      onDone = callback
+    })
+  end
+end
+
+function doEnemyActions(onDone)
+  local enemies = getAliveEnemies()
+
+  local enemiesCount = #enemies
+  local index = 0
+
+  function doAction()
+    local enemyData = enemies[index + 1]
+    local enemy = getObjectFromGUID(enemyData.guid)
+    local stats = getEnemyStats({
+      act = GAME_DATA.act,
+      name = enemyData.name,
+      tag = enemy.getTags()[1]
+    })
+    if stats.dieActions ~= nil then
+      doEnemyDieActions({
+        guid = enemy.guid,
+        stats = stats,
+        onDone = function()
+          index = index + 1
+          myLog("top callback\n"..index.."\n"..enemiesCount)
+          if index == enemiesCount then
+            onDone()
+          else
+            doAction()
+          end
+        end
+      })
+    end
+
+    if stats.everyTurnActions ~= nil then
+      doEnemyEveryTurnActions({
+        guid = enemy.guid,
+        stats = stats,
+        onDone = function()
+          index = index + 1
+          myLog("top callback\n"..index.."\n"..enemiesCount)
+          if index == enemiesCount then
+            onDone()
+          else
+            doAction()
+          end
+        end
+      })
+    end
+  end
+
+  if enemiesCount > 0 then
+    doAction()
+  end
+end
+
+function startEnemyTurn()
+  function startEnemyTurnCoroutine()
+    myLog("Start enemy turn")
+    setTurn({
+      turn = TURN_TYPES.ENEMIES
+    })
+    local enemies = getAliveEnemies()
+    for _, enemy in ipairs(enemies) do
+      setBlockForEnemy(enemy.guid, 0)
+    end
+    waitFrames(100)
+    doEnemyActions(function()
+      myLog("Enemy actions done")
+      startCombatPlayersTurn()
+    end)
+    return 1
+  end
+  startLuaCoroutine(self, "startEnemyTurnCoroutine")
 end
 
 function startCombatEndOfTurnPhase()
@@ -5580,6 +5924,13 @@ function startCombatPlayersTurn()
   setTurn({
     turn = TURN_TYPES.PLAYERS
   })
+  setTurnCount({
+    turnCount = GAME_DATA.combat.turnCount + 1,
+  })
+  local colors = getPlayingColors()
+  for _, color in ipairs(colors) do
+    GAME_DATA.combat.players[color].endsTurn = false
+  end
   startCombatStartTurnPhase(function()
     startCombatPlayPhase()
   end)
@@ -5591,10 +5942,22 @@ end
 
 function startCombat()
   setTurnCount({
-    turnCount = 1
+    turnCount = 0
   })
   moveDiceToInitialPosition()
   local colors = getPlayingColors()
+  local enemiesOrder = {}
+  local index = #colors
+  while index >= 1 do
+    for guid, enemy in pairs(GAME_DATA.combat.enemies) do
+      if enemy.row == index then
+        table.insert(enemiesOrder, enemy.guid)
+      end
+    end
+    index = index - 1
+  end
+  GAME_DATA.combat.enemiesOrder = enemiesOrder
+
   for _, color in ipairs(colors) do
     local relics = GAME_DATA.players[color].relics
     for _, relic in ipairs(relics) do
